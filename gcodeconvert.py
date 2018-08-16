@@ -55,9 +55,12 @@ def main():
 
     conv.concat_moves()
     conv.generate_control()
+    if outfile != None:
+        outfile = open(outfile, "w")
+    else:
+        outfile = sys.stdout
     for ctl in conv.outcode:
-        print(ctl)
-
+        outfile.write(ctl + "\n")
 
 if __name__ == "__main__":
     main()
