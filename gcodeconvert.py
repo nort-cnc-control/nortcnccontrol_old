@@ -24,7 +24,6 @@ def readfile(infile):
     return res
 
 
-
 def main():
     parser = GLineParser()
     conv = Machine()

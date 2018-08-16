@@ -2,6 +2,7 @@
 
 import abc
 import euclid3
+import math
 
 class Action(object):
     @abc.abstractmethod
@@ -32,7 +33,7 @@ class Movement(Action):
 class LinearMovement(Movement):
 
     def make_code(self):
-        g1 = "G01 F%i P%i L%i " % (self.feed, self.feed0, self.feed1)
+        g1 = "G01 F%i P%i L%i " % (self.feed+0.5, self.feed0+0.5, self.feed1+0.5)
         g2 = "X%.2f Y%.2f Z%.2f" % (self.delta.x, self.delta.y, self.delta.z)
         return g1 + g2
 
@@ -80,7 +81,8 @@ class Machine(object):
     outcode = []
     actions = []
     feed = 1
-    acc = 10
+    acc = 1000
+    jump = 2000
     pos = euclid3.Vector3()
     relative = False
 
@@ -137,6 +139,8 @@ class Machine(object):
         for cmd in frame.commands:
             if cmd.type == "T":
                 self.acc = cmd.value
+            elif cmd.type == "F":
+                self.jump = cmd.value
 
     def __set_acc(self, cmds):
         acc = None
@@ -165,28 +169,51 @@ class Machine(object):
 
     def concat_moves(self):
         prevmove = None
-        feed = 0
-        d = euclid3.Vector3(0, 0, 0)
+        prevfeed = 0
+        prevdir = euclid3.Vector3(0, 0, 0)
         moves = [action for action in self.actions if action.is_moving()]
         for move in moves:
-            curf = move.feed
-            md = move.dir0()
-            k = md.x * d.x + md.y * d.y + md.z * d.z
-            if k < 0:
-                k = 0
-            if k >= 1 - 1e-6:
-                if feed < curf:
-                    move.feed0 = feed
-                    if prevmove != None:
-                        prevmove.feed1 = feed
+            curfeed = move.feed
+            curdir = move.dir0()
+            cosa = curdir.x * prevdir.x + curdir.y * prevdir.y + curdir.z * prevdir.z
+            if cosa > 0:
+                sina = math.sqrt(1-cosa**2)
+                if sina < 1e-3:
+                    # Mostly same direction
+                    if prevfeed < curfeed:
+                        move.feed0 = prevfeed
+                        if prevmove != None:
+                            prevmove.feed1 = prevfeed
+                    else:
+                        move.feed0 = curfeed
+                        if prevmove != None:
+                            prevmove.feed1 = curfeed
                 else:
-                    move.feed0 = curf
-                    if prevmove != None:
-                        prevmove.feed1 = curf
+                    # Have direction change
+                    #
+                    # endfeed = startfeed * cosa
+                    # startfeed * sina <= jump
+                    # endfeed <= prevfeed
+                    # startfeed <= curfeed
 
-            feed = curf
+                    startfeed = curfeed
+
+                    startfeed = min(startfeed, self.jump / sina)
+                    if cosa > 0:
+                        startfeed = min(startfeed, prevfeed / cosa)
+                    endfeed = startfeed * cosa
+
+                    move.feed0 = startfeed
+                    prevmove.feed1 = endfeed
+            else:
+                # Change direction
+                if prevmove != None:
+                    prevmove.feed1 = 0
+                move.feed0 = 0
+
+            prevfeed = curfeed
             prevmove = move           
-            d = move.dir1()
+            prevdir = move.dir1()
             
 
     def generate_control(self):
