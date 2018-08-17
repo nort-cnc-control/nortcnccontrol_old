@@ -33,7 +33,7 @@ class Movement(Action):
 class LinearMovement(Movement):
 
     def make_code(self):
-        g1 = "G01 F%i P%i L%i " % (self.feed+0.5, self.feed0+0.5, self.feed1+0.5)
+        g1 = "G01F%iP%iL%iT%i " % (self.feed, self.feed0+0.5, self.feed1+0.5, self.acceleration)
         g2 = "X%.2f Y%.2f Z%.2f" % (self.delta.x, self.delta.y, self.delta.z)
         return g1 + g2
 
@@ -51,14 +51,6 @@ class LinearMovement(Movement):
 
     def dir1(self):
         return self.dir
-
-class SetAcceleration(Action):
-
-    def __init__(self, acc):
-        self.acc = int(acc)
-
-    def make_code(self):
-        return "M204 T%i" % self.acc
 
 class ToBeginMovement(Action):
 
@@ -81,6 +73,7 @@ class Machine(object):
     outcode = []
     actions = []
     feed = 1
+    fastfeed = 1200
     acc = 1000
     jump = 2000
     pos = euclid3.Vector3()
@@ -94,6 +87,10 @@ class Machine(object):
 
     def __move(self, cmds):
         newpos = self.pos
+        fast = False
+        for cmd in cmds:
+            if cmd.type == "G" and cmd.value == 0:
+                fast = True
         if self.relative:
             for cmd in cmds:
                 if cmd.type == "X":
@@ -114,7 +111,10 @@ class Machine(object):
             if cmd.type == "F":
                 self.feed = cmd.value
         delta = newpos - self.pos
-        self.actions.append(LinearMovement(delta, self.feed, self.acc))
+        if not fast:
+            self.actions.append(LinearMovement(delta, self.feed, self.acc))
+        else:
+            self.actions.append(LinearMovement(delta, self.fastfeed, self.acc))
         self.pos = newpos
 
     def __tobegin(self, cmds):
@@ -135,20 +135,12 @@ class Machine(object):
             raise Exception ("Invalid command")
         self.curaction = action
 
-    def set_acceleration(self, frame):
+    def __set_acceleration(self, frame):
         for cmd in frame.commands:
             if cmd.type == "T":
                 self.acc = cmd.value
             elif cmd.type == "F":
                 self.jump = cmd.value
-
-    def __set_acc(self, cmds):
-        acc = None
-        for cmd in cmds:
-            if cmd.type == "T":
-                acc = cmd.value
-        if acc != None:
-            self.actions.append(SetAcceleration(acc))
 
     def process(self, frame):
         for cmd in frame.commands:
@@ -161,8 +153,7 @@ class Machine(object):
             elif cmd.type == "G" and cmd.value == 28:
                 self.__set_curaction(self.__tobegin)
             elif cmd.type == "M" and cmd.value == 204:
-                self.set_acceleration(frame)
-                self.__set_curaction(self.__set_acc)
+                self.__set_acceleration(frame)
         if self.curaction != None:
             self.curaction(frame.commands)
         self.curaction = self.__none
@@ -175,46 +166,50 @@ class Machine(object):
         for move in moves:
             curfeed = move.feed
             curdir = move.dir0()
-            cosa = curdir.x * prevdir.x + curdir.y * prevdir.y + curdir.z * prevdir.z
-            if cosa > 0:
-                sina = math.sqrt(1-cosa**2)
-                if sina < 1e-3:
-                    # Mostly same direction
-                    if prevfeed < curfeed:
-                        move.feed0 = prevfeed
-                        if prevmove != None:
-                            prevmove.feed1 = prevfeed
+
+            if prevmove != None:
+                cosa = curdir.x * prevdir.x + curdir.y * prevdir.y + curdir.z * prevdir.z
+                if cosa > 0:
+                    sina = math.sqrt(1-cosa**2)
+                    if sina < 1e-3:
+                        # The same direction
+                        #
+                        # startfeed = prevfeed
+                        # endfeed <= prevfeed
+                        # startfeed <= curfeed
+
+                        startfeed = min(curfeed, prevfeed)
+                        endfeed = startfeed
+                        move.feed0 = startfeed
+                        prevmove.feed1 = endfeed
                     else:
-                        move.feed0 = curfeed
-                        if prevmove != None:
-                            prevmove.feed1 = curfeed
+                        # Have direction change
+                        #
+                        # endfeed = startfeed * cosa
+                        # startfeed * sina <= jump
+                        # endfeed <= prevfeed
+                        # startfeed <= curfeed
+
+                        startfeed = curfeed
+                        startfeed = min(startfeed, self.jump / sina)
+                        endfeed = startfeed * cosa
+
+                        move.feed0 = startfeed
+                        prevmove.feed1 = endfeed
                 else:
-                    # Have direction change
+                    # Change direction more than 90
                     #
-                    # endfeed = startfeed * cosa
-                    # startfeed * sina <= jump
-                    # endfeed <= prevfeed
-                    # startfeed <= curfeed
-
-                    startfeed = curfeed
-
-                    startfeed = min(startfeed, self.jump / sina)
-                    if cosa > 0:
-                        startfeed = min(startfeed, prevfeed / cosa)
-                    endfeed = startfeed * cosa
-
-                    move.feed0 = startfeed
-                    prevmove.feed1 = endfeed
-            else:
-                # Change direction
-                if prevmove != None:
+                    # endfeed = 0
+                    # startfeed = 0
                     prevmove.feed1 = 0
+                    move.feed0 = 0
+            else:
+                # first move
                 move.feed0 = 0
 
             prevfeed = curfeed
             prevmove = move           
             prevdir = move.dir1()
-            
 
     def generate_control(self):
         for act in self.actions:

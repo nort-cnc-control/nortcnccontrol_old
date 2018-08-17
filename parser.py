@@ -8,9 +8,9 @@ class GCmd(object):
         self.parsed = None
         self.type = s[0]
         self.value = s[1:]
-        if "GMTF".find(self.type) != -1:
+        if "GMT".find(self.type) != -1:
             self.value = int(self.value)
-        elif "XYZABCIJK".find(self.type) != -1:
+        elif "FXYZABCIJK".find(self.type) != -1:
             self.value = float(self.value)
 
     def __repr__(self):
@@ -32,7 +32,7 @@ class GFrame(object):
 
 class GLineParser(object):
     def __init__(self):
-        pattern = r"(?:[ ]*(?:\((.*)\))*[ ]*([A-Z][0-9]*[\.[0-9]*]?))*[ ]*(?:\((.*)\))*[ ]*(?:;(.*))?"
+        pattern = r"(?:%|(?:[ ]*(?:\((.*)\))*[ ]*([A-Z]-?[0-9]*[\.[0-9]*]?))*[ ]*(?:\((.*)\))*[ ]*(?:;(.*))?)"
         self.re = regex.compile(pattern)
 
     def parse(self, line):

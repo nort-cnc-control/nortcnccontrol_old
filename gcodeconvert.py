@@ -50,7 +50,7 @@ def main():
         frame = parser.parse(line)
         if frame == None:
             print("Invalid line")
-            break
+            return
         conv.process(frame)
 
     conv.concat_moves()
