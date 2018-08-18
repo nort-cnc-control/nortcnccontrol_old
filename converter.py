@@ -129,6 +129,7 @@ class Machine(object):
                         # startfeed <= curfeed
 
                         startfeed = curfeed
+                        startfeed = min(startfeed, prevfeed / cosa)
                         startfeed = min(startfeed, self.jump / sina)
                         endfeed = startfeed * cosa
 
