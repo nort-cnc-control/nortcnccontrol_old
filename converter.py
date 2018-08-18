@@ -4,70 +4,8 @@ import abc
 import euclid3
 import math
 
-class Action(object):
-    @abc.abstractmethod
-    def make_code(self):
-        pass
-    
-    def is_moving(self):
-        return False
-
-class Movement(Action):
-    def is_moving(self):
-        return True
-
-    @abc.abstractmethod
-    def dir0(self):
-        return None
-
-    @abc.abstractmethod
-    def dir1(self):
-        return None
-
-    def __init__(self, feed, acc):
-        self.feed = feed
-        self.feed0 = 0
-        self.feed1 = 0
-        self.acceleration = acc
-
-class LinearMovement(Movement):
-
-    def make_code(self):
-        g1 = "G01F%iP%iL%iT%i " % (self.feed, self.feed0+0.5, self.feed1+0.5, self.acceleration)
-        g2 = "X%.2f Y%.2f Z%.2f" % (self.delta.x, self.delta.y, self.delta.z)
-        return g1 + g2
-
-    def __init__(self, delta, feed, acc):
-        Movement.__init__(self, feed=feed, acc=acc)
-        self.delta = delta
-        self.gcode = None
-        if self.delta.magnitude() > 0:
-            self.dir = self.delta / self.delta.magnitude()
-        else:
-            self.dir = euclid3.Vector3()
-    
-    def dir0(self):
-        return self.dir
-
-    def dir1(self):
-        return self.dir
-
-class ToBeginMovement(Action):
-
-    def make_code(self):
-        res = "G28"
-        if self.x:
-            res += " X0"
-        if self.y:
-            res += " Y0"
-        if self.z:
-            res += " Z0"
-        return res
-        
-    def __init__(self, x, y, z):
-        self.x = x
-        self.y = y
-        self.z = z
+import homing
+import linear
 
 class Machine(object):
     outcode = []
@@ -112,9 +50,9 @@ class Machine(object):
                 self.feed = cmd.value
         delta = newpos - self.pos
         if not fast:
-            self.actions.append(LinearMovement(delta, self.feed, self.acc))
+            self.actions.append(linear.LinearMovement(delta, self.feed, self.acc))
         else:
-            self.actions.append(LinearMovement(delta, self.fastfeed, self.acc))
+            self.actions.append(linear.LinearMovement(delta, self.fastfeed, self.acc))
         self.pos = newpos
 
     def __tobegin(self, cmds):
@@ -128,7 +66,7 @@ class Machine(object):
                 y = True
             elif cmd.type == "Z":
                 z = True
-        self.actions.append(ToBeginMovement(x, y, z))
+        self.actions.append(homing.ToBeginMovement(x, y, z))
 
     def __set_curaction(self, action):
         if self.curaction != self.__none:
