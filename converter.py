@@ -7,6 +7,15 @@ import math
 import homing
 import linear
 
+# Supported codes
+#
+# G0/G1
+# G28
+# G90
+# G91
+# G94
+# M204
+#
 class Machine(object):
     outcode = []
     actions = []
@@ -22,6 +31,11 @@ class Machine(object):
 
     def __none(self, cmds):
         pass
+
+    def __set_feed(self, frame):
+        for cmd in frame.commands:
+            if cmd.type == "F":
+                self.feed = cmd.value
 
     def __move(self, cmds):
         newpos = self.pos
@@ -82,18 +96,21 @@ class Machine(object):
 
     def process(self, frame):
         for cmd in frame.commands:
-            if cmd.type == "G" and (cmd.value == 0 or cmd.value == 1):
-                self.__set_curaction(self.__move)
-            elif cmd.type == "G" and cmd.value == 90:
-                self.relative = False
-            elif cmd.type == "G" and cmd.value == 91:
-                self.relative = True
-            elif cmd.type == "G" and cmd.value == 28:
-                self.__set_curaction(self.__tobegin)
-            elif cmd.type == "M" and cmd.value == 204:
-                self.__set_acceleration(frame)
-        if self.curaction != None:
-            self.curaction(frame.commands)
+            if cmd.type == "G":
+                if cmd.value == 0 or cmd.value == 1:
+                    self.__set_curaction(self.__move)
+                elif cmd.value == 28:
+                    self.__set_curaction(self.__tobegin)
+                elif cmd.value == 90:
+                    self.relative = False
+                elif cmd.value == 91:
+                    self.relative = True
+                elif cmd.value == 94:
+                    self.__set_feed(frame)
+            elif cmd.type == "M":
+                if cmd.value == 204:
+                    self.__set_acceleration(frame)
+        self.curaction(frame.commands)
         self.curaction = self.__none
 
     def concat_moves(self):
