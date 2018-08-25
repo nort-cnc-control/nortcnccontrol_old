@@ -4,7 +4,7 @@ class Action(object):
     @abc.abstractmethod
     def make_code(self):
         pass
-    
+
     def is_moving(self):
         return False
 

@@ -4,8 +4,11 @@ import abc
 import euclid3
 import math
 
+from enum import Enum
+
 import homing
 import linear
+import pause
 
 # Supported codes
 #
@@ -14,20 +17,28 @@ import linear
 # G90
 # G91
 # G94
+# M0
 # M204
-#
+
 class Machine(object):
+
+    class MachineState(Enum):
+        idle = 0
+        moving = 1
+        pause = 2
+
     outcode = []
     actions = []
-    feed = 1
+    feed = 5
     fastfeed = 1200
     acc = 1000
-    jump = 2000
+    jerk = 2000
     pos = euclid3.Vector3()
     relative = False
 
     def __init__(self):
         self.curaction = self.__none
+        self.state = self.MachineState.idle
 
     def __none(self, cmds):
         pass
@@ -92,7 +103,10 @@ class Machine(object):
             if cmd.type == "T":
                 self.acc = cmd.value
             elif cmd.type == "F":
-                self.jump = cmd.value
+                self.jerk = cmd.value
+
+    def __insert_pause(self):
+        self.actions.append(pause.Pause())
 
     def process(self, frame):
         for cmd in frame.commands:
@@ -108,12 +122,14 @@ class Machine(object):
                 elif cmd.value == 94:
                     self.__set_feed(frame)
             elif cmd.type == "M":
-                if cmd.value == 204:
+                if cmd.value == 0:
+                    self.__insert_pause()
+                elif cmd.value == 204:
                     self.__set_acceleration(frame)
         self.curaction(frame.commands)
         self.curaction = self.__none
 
-    def concat_moves(self):
+    def optimize(self):
         prevmove = None
         prevfeed = 0
         prevdir = euclid3.Vector3(0, 0, 0)
@@ -147,7 +163,7 @@ class Machine(object):
 
                         startfeed = curfeed
                         startfeed = min(startfeed, prevfeed / cosa)
-                        startfeed = min(startfeed, self.jump / sina)
+                        startfeed = min(startfeed, self.jerk / sina)
                         endfeed = startfeed * cosa
 
                         move.feed0 = startfeed
