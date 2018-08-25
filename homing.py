@@ -10,7 +10,7 @@ class ToBeginMovement(action.Action):
             res += " Y0"
         if self.z:
             res += " Z0"
-        return res
+        print(res)
         
     def __init__(self, x, y, z):
         self.x = x

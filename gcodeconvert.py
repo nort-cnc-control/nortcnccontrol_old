@@ -53,7 +53,7 @@ def main():
             return
         conv.process(frame)
 
-    conv.concat_moves()
+    conv.optimize()
     conv.generate_control()
     if outfile != None:
         outfile = open(outfile, "w")

@@ -2,7 +2,7 @@ import abc
 
 class Action(object):
     @abc.abstractmethod
-    def make_code(self):
+    def act(self):
         pass
 
     def is_moving(self):
@@ -11,6 +11,13 @@ class Action(object):
 class Movement(Action):
     def is_moving(self):
         return True
+
+    def act(self):
+        self.emit_code()
+
+    @abc.abstractmethod
+    def emit_code(self):
+        pass
 
     @abc.abstractmethod
     def dir0(self):
