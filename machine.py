@@ -55,11 +55,11 @@ class Machine(object):
     def __insert_move(self, frame):
         newpos = self.pos
         fast = False
-        for cmd in frame.cmds:
+        for cmd in frame.commands:
             if cmd.type == "G" and cmd.value == 0:
                 fast = True
         if self.relative:
-            for cmd in frame.cmds:
+            for cmd in frame.commands:
                 if cmd.type == "X":
                     newpos = euclid3.Vector3(cmd.value + newpos.x, newpos.y, newpos.z)
                 elif cmd.type == "Y":
@@ -67,14 +67,14 @@ class Machine(object):
                 elif cmd.type == "Z":
                     newpos = euclid3.Vector3(newpos.x, newpos.y, cmd.value + newpos.z)
         else:
-            for cmd in frame.cmds:
+            for cmd in frame.commands:
                 if cmd.type == "X":
                     newpos = euclid3.Vector3(cmd.value, newpos.y, newpos.z)
                 elif cmd.type == "Y":
                     newpos = euclid3.Vector3(newpos.x, cmd.value, newpos.z)
                 elif cmd.type == "Z":
                     newpos = euclid3.Vector3(newpos.x, newpos.y, cmd.value)
-        for cmd in frame.cmds:
+        for cmd in frame.commands:
             if cmd.type == "F":
                 self.feed = cmd.value
         delta = newpos - self.pos
@@ -88,7 +88,7 @@ class Machine(object):
         x = False
         y = False
         z = False
-        for cmd in frame.cmds:
+        for cmd in frame.commands:
             if cmd.type == "X":
                 x = True
             elif cmd.type == "Y":
@@ -100,7 +100,7 @@ class Machine(object):
     def __insert_pause(self):
         self.actions.append(pause.WaitResume())
 
-    def process(self, frame):
+    def __process(self, frame):
         for cmd in frame.commands:
             if cmd.type == "G":
                 if cmd.value == 0 or cmd.value == 1:
@@ -119,7 +119,7 @@ class Machine(object):
                 elif cmd.value == 204:
                     self.__set_acceleration(frame)
 
-    def optimize(self):
+    def __optimize(self):
         prevmove = None
         prevfeed = 0
         prevdir = euclid3.Vector3(0, 0, 0)
@@ -176,6 +176,10 @@ class Machine(object):
             prevfeed = curfeed
             prevmove = move           
             prevdir = move.dir1()
+
+    def load(self, frames):
+        for frame in frames:
+            self.__process(frame)
 
     def run(self):
         for a in self.actions:

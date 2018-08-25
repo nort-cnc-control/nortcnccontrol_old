@@ -5,7 +5,7 @@ import sys
 import getopt
 import abc
 from parser import GLineParser
-from converter import Machine
+from machine import Machine
 
 def usage():
     pass
@@ -46,21 +46,17 @@ def main():
             sys.exit(0)
 
     gcode = readfile(infile)
+    frames = []
     for line in gcode:
         frame = parser.parse(line)
         if frame == None:
             print("Invalid line")
             return
-        conv.process(frame)
+        frames.append(frame)
 
-    conv.optimize()
-    conv.generate_control()
-    if outfile != None:
-        outfile = open(outfile, "w")
-    else:
-        outfile = sys.stdout
-    for ctl in conv.outcode:
-        outfile.write(ctl + "\n")
+    conv.load(frames)
+
+    conv.run()
 
 if __name__ == "__main__":
     main()
