@@ -106,6 +106,9 @@ class Machine(object):
             self.TLO          = self.ToolLengthOffset.no_compensation
             self.canned       = self.CannedCyclesGroup.retract_origin
             self.coord_system = self.CoordinateSystemGroup.no_offset
+            self.spindle      = self.SpindleGroup.spindle_stop
+            self.coolant      = self.CoolantGroup.no_coolant
+            self.clamp        = self.ClampGroup.unclamp
 
         def process_frame(self, frame):
             for cmd in frame.commands:
