@@ -252,10 +252,7 @@ class Machine(object):
                     break
 
     def __init__(self):
-        self.actions = []
-        self.state = self.PositioningState()
-        self.toolstate = self.ToolState()
-        self.__insert_select_tool(self.toolstate.tool)
+        self.init()
 
     def __program_end(self):
         self.actions.append(program.Finish())
@@ -421,7 +418,14 @@ class Machine(object):
             prevmove = move           
             prevdir = move.dir1()
 
+    def init(self):
+        self.actions = []
+        self.state = self.PositioningState()
+        self.toolstate = self.ToolState()
+        self.__insert_select_tool(self.toolstate.tool)
+
     def load(self, frames):
+        self.init()
         for frame in frames:
             self.__process(frame)
         self.__optimize()
