@@ -59,7 +59,7 @@ class GLineParser(object):
     def __parse_word(self, s):
         if len(s) == 0:
             raise Exception("Invalid call of parse word")
-        if "ABCDEFGHIJKLMNOPQRSTUVWXYZ".find(s[0]) == -1:
+        if not (s[0].isalpha() and s[0].isupper()):
             raise Exception("Invalid call of parse word")
         cmd = s[0]
         s = s[1:]
