@@ -317,9 +317,6 @@ class Machine(object):
 
     def __process_begin(self, frame):
         self.toolstate.process_begin(frame)
-        for cmd in frame.commands:
-            if cmd.type != "M":
-                continue
 
     def __process_move(self, frame):
         self.state.process_frame(frame)

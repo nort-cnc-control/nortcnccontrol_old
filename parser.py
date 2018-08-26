@@ -1,7 +1,5 @@
 #/usr/bin/env python3
 
-import regex
-
 class GCmd(object):
 
     def __init__(self, s):
@@ -18,12 +16,16 @@ class GCmd(object):
 
 class GFrame(object):
 
-    def __init__(self, cmds, comments):
+    def __init__(self):
         self.commands = []
-        for cmd in cmds:
-            self.commands.append(GCmd(cmd))
-        self.comments = comments
+        self.comments = []
     
+    def add_cmd(self, cmd):
+        self.commands.append(cmd)
+    
+    def add_comment(self, comment):
+        self.comments.append(comment)
+
     def __repr__(self):
         res = str(self.commands[0])
         for cmd in self.commands[1:]:
@@ -31,17 +33,68 @@ class GFrame(object):
         return res
 
 class GLineParser(object):
-    def __init__(self):
-        pattern = r"(?:%|(?:[ ]*(?:\((.*)\))*[ ]*([A-Z][-+]?[0-9]*[\.[0-9]*]?))*[ ]*(?:\((.*)\))*[ ]*(?:;(.*))?)"
-        self.re = regex.compile(pattern)
+
+    def __omit_space(self, s):
+        while len(s) > 0 and s[0] == " ":
+            s = s[1:]
+        return s
+    
+    def __parse_comment_bracket(self, s):
+        if len(s) == 0 or s[0] != '(':
+            raise Exception("Invalid call of parse comment")
+        s = s[1:]
+        pos = s.find(')')
+        if pos == -1:
+            return None, s
+        c = s[:pos]
+        s = s[pos + 1:]
+        return s, c
+
+    def __parse_comment_semicolon(self, s):
+        if len(s) == 0 or s[0] != ';':
+            raise Exception("Invalid call of parse comment")
+        s = s[1:]
+        return None, s
+
+    def __parse_word(self, s):
+        if len(s) == 0:
+            raise Exception("Invalid call of parse word")
+        if "ABCDEFGHIJKLMNOPQRSTUVWXYZ".find(s[0]) == -1:
+            raise Exception("Invalid call of parse word")
+        cmd = s[0]
+        s = s[1:]
+        n = s
+        while len(s) > 0 and "0123456789.+-".find(s[0]) != -1:
+            s = s[1:]
+
+        if len(s) > 0:
+            pos = n.find(s)
+            n = n[:pos]
+        gc = GCmd(cmd + n)
+        return s, gc
+
+    def __parse_frame(self, s):
+        frame = GFrame()
+        while s != None and len(s) > 0:
+            if s[0] == "\n":
+                break
+            elif s[0] == " ":
+                s = self.__omit_space(s)
+            elif s[0] == "(":
+                s, comment = self.__parse_comment_bracket(s)
+                frame.add_comment(comment)
+            elif s[0] == ";":
+                s, comment = self.__parse_comment_semicolon(s)
+                frame.add_comment(comment)
+            else:
+                s, cmd = self.__parse_word(s)
+                frame.add_cmd(cmd)
+        return frame
 
     def parse(self, line):
-        r = self.re.fullmatch(line)
-        if r == None:
-            return None
-
-        try:
-            frame = GFrame(r.captures(2), r.captures(1) + r.captures(3) + r.captures(4))
-            return frame
-        except:
-            return None
+        line = self.__omit_space(line)
+        if len(line) == 0:
+            return GFrame()
+        elif line[0] == "%":
+            return GFrame()
+        return self.__parse_frame(line)
