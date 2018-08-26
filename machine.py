@@ -81,7 +81,7 @@ class Machine(object):
             offset_4  = 57
             offset_5  = 58
             offset_6  = 59
-        
+
         def __init__(self):
             self.feed = 5
             self.fastfeed = 1200
@@ -133,6 +133,7 @@ class Machine(object):
 
         def __init__(self):
             self.tool         = 0
+            self.speed        = 0
 
             self.spindle      = self.SpindleGroup.spindle_stop
             self.coolant      = self.CoolantGroup.no_coolant
@@ -200,6 +201,18 @@ class Machine(object):
                     if self.feed != None:
                         raise Exception("F meets 2 times")
                     self.feed = cmd.value
+
+    class SpindleSpeed(object):
+        
+        speed = None
+        
+        def __init__(self, frame):
+            for cmd in frame.commands:
+                if cmd.type == "S":
+                    if self.speed != None:
+                        raise Exception("S meets 2 times")
+                    self.speed = cmd.value
+
 
     class Tool(object):
 
@@ -298,6 +311,10 @@ class Machine(object):
         self.toolstate.tool = tool
         self.actions.append(tools.WaitTool(tool))
 
+    def __insert_set_speed(self, speed):
+        self.toolstate.sped = speed
+        self.actions.append(tools.SetSpeed(speed))
+
     def __process_begin(self, frame):
         self.toolstate.process_begin(frame)
         for cmd in frame.commands:
@@ -310,11 +327,15 @@ class Machine(object):
         feed = self.Feed(frame)
         stop = self.ExactStop(frame)
         tool = self.Tool(frame)
+        speed = self.SpindleSpeed(frame)
 
         for cmd in frame.commands:
             if cmd.type == "G":
                 if cmd.value == 28:
                     self.__insert_homing(frame)
+
+        if speed.speed != None:
+            self.__insert_set_speed(speed.speed)
 
         if tool.tool != None:
             self.__insert_select_tool(tool.tool)

@@ -10,7 +10,7 @@ class GCmd(object):
         self.value = s[1:]
         if "GMT".find(self.type) != -1:
             self.value = int(self.value)
-        elif "FXYZABCIJK".find(self.type) != -1:
+        elif "FXYZABCIJKS".find(self.type) != -1:
             self.value = float(self.value)
 
     def __repr__(self):
