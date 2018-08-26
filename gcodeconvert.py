@@ -4,6 +4,10 @@ import euclid3
 import sys
 import getopt
 import abc
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk
+
 from parser import GLineParser
 from machine import Machine
 
@@ -29,6 +33,14 @@ def main():
     conv = Machine()
     infile = None
     outfile = None
+
+#    builder = Gtk.Builder()
+#    builder.add_from_file("interface.glade")
+
+#    window = builder.get_object("window")
+#    window.show_all()
+
+#    Gtk.main()
 
     try:
         optlist,_ = getopt.getopt(sys.argv[1:], "i:o:h")

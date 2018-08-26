@@ -23,101 +23,219 @@ import pause
 
 class Machine(object):
 
-    class MachineState(Enum):
-        idle = 0
-        moving = 1
-        pause = 2
+    class MachineState(object):
 
-    outcode = []
+        class MotionGroup(Enum):
+            fast_move = 0
+            line = 1
+            round_cw = 2
+            round_ccw = 3
+            parabolic = 6
+            threading = 33
+            treading_inc = 34
+            threading_dec = 35
+
+        class PlaneGroup(Enum):
+            xy = 17
+            yz = 18
+            zx = 19
+
+        class PositioningGroup(Enum):
+            absolute = 90
+            relative = 91
+
+        class FeedRateGroup(Enum):
+            inverse_time = 93
+            feed = 94
+            feed_per_round = 95
+
+        class UnitsGroup(Enum):
+            inches = 20
+            mms = 21
+
+        class CutterRadiusCompenstationGroup(Enum):
+            no_compensation = 40
+            compensate_left = 41
+            compensate_right = 42
+
+        class ToolLengthOffset(Enum):
+            compensation_negative = 43
+            compensation_positive = 44
+            no_compensation = 49
+
+        class CannedCyclesGroup(Enum):
+            retract_origin = 98
+            retract_r = 99
+
+        class CoordinateSystemGroup(Enum):
+            no_offset = 53
+            offset_1  = 54
+            offset_2  = 55
+            offset_3  = 56
+            offset_4  = 57
+            offset_5  = 58
+            offset_6  = 59
+
+        class SpindleGroup(Enum):
+            spindle_cw = 3
+            spindle_ccw = 4
+            spindle_stop = 5
+        
+        class CoolantGroup(Enum):
+            coolant_1 = 7
+            coolant_2 = 8
+            no_coolant = 9
+        
+        class ClampGroup(Enum):
+            clamp = 10
+            unclamp = 11
+        
+        def __init__(self):
+            self.feed = 5
+            self.fastfeed = 1200
+            self.acc = 1000
+            self.jerk = 20
+            self.pos = euclid3.Vector3()
+
+            self.motion       = self.MotionGroup.fast_move
+            self.plane        = self.PlaneGroup.xy
+            self.positioning  = self.PositioningGroup.absolute
+            self.feed_mode    = self.FeedRateGroup.feed
+            self.UnitsGroup   = self.UnitsGroup.mms
+            self.CRC          = self.CutterRadiusCompenstationGroup.no_compensation
+            self.TLO          = self.ToolLengthOffset.no_compensation
+            self.canned       = self.CannedCyclesGroup.retract_origin
+            self.coord_system = self.CoordinateSystemGroup.no_offset
+
+        def process_frame(self, frame):
+            for cmd in frame.commands:
+                if cmd.type == "G":
+                    if cmd.value == 0:
+                        self.motion = self.MotionGroup.fast_move
+                    elif cmd.value == 1:
+                        self.motion = self.MotionGroup.line
+                    elif cmd.value == 90:
+                        self.positioning = self.PositioningGroup.absolute
+                    elif cmd.value == 91:
+                        self.positioning = self.PositioningGroup.relative
+                    elif cmd.value == 94:
+                        self.feed_mode = self.FeedRateGroup.feed
+
+    class Positioning(object):
+
+        moving = False
+        X = None
+        Y = None
+        Z = None
+
+        def __init__(self, frame):
+            for cmd in frame.commands:
+                if cmd.type == "X":
+                    if self.X != None:
+                        raise Exception("X meets 2 times")
+                    self.X = cmd.value
+                    self.moving = True
+                elif cmd.type == "Y":
+                    if self.Y != None:
+                        raise Exception("Y meets 2 times")
+                    self.Y = cmd.value
+                    self.moving = True
+                elif cmd.type == "Z":
+                    if self.Z != None:
+                        raise Exception("Z meets 2 times")
+                    self.Z = cmd.value
+                    self.moving = True
+
+    class Feed(object):
+
+        F = None
+        
+        def __init__(self, frame):
+            for cmd in frame.commands:
+                if cmd.type == "F":
+                    if self.F != None:
+                        raise Exception("F meets 2 times")
+                    self.F = cmd.value
+        
+
     actions = []
-    feed = 5
-    fastfeed = 1200
-    acc = 1000
-    jerk = 2000
-    pos = euclid3.Vector3()
+    
     relative = False
 
     def __init__(self):
-        self.state = self.MachineState.idle
+        self.state = self.MachineState()
 
-    def __set_feed(self, frame):
-        for cmd in frame.commands:
-            if cmd.type == "F":
-                self.feed = cmd.value
+    def __set_feed(self, feed):
+        if self.state.feed_mode != self.MachineState.FeedRateGroup.feed:
+            raise Exception("Unsupported feed mode %s" % self.state.feed_mode)
+        self.state.feed = feed
 
-    def __set_acceleration(self, frame):
-        for cmd in frame.commands:
-            if cmd.type == "T":
-                self.acc = cmd.value
-            elif cmd.type == "F":
-                self.jerk = cmd.value
+    def __set_acceleration(self, acc):
+        self.state.acc = acc
+    
+    def __set_jerk(self, jerk):
+        self.state.jerk = jerk
 
-    def __insert_move(self, frame):
-        newpos = self.pos
-        fast = False
-        for cmd in frame.commands:
-            if cmd.type == "G" and cmd.value == 0:
-                fast = True
-        if self.relative:
-            for cmd in frame.commands:
-                if cmd.type == "X":
-                    newpos = euclid3.Vector3(cmd.value + newpos.x, newpos.y, newpos.z)
-                elif cmd.type == "Y":
-                    newpos = euclid3.Vector3(newpos.x, cmd.value + newpos.y, newpos.z)
-                elif cmd.type == "Z":
-                    newpos = euclid3.Vector3(newpos.x, newpos.y, cmd.value + newpos.z)
+    def __insert_move(self, pos):
+        newpos = self.state.pos
+
+        if self.state.positioning == self.MachineState.PositioningGroup.relative:
+            if pos.X != None:
+                newpos = euclid3.Vector3(pos.X + newpos.x, newpos.y, newpos.z)
+            if pos.Y != None:
+                newpos = euclid3.Vector3(newpos.x, pos.Y + newpos.y, newpos.z)
+            if pos.Z != None:
+                newpos = euclid3.Vector3(newpos.x, newpos.y, pos.Z + newpos.z)
+        elif self.state.positioning == self.MachineState.PositioningGroup.absolute:
+            if pos.X != None:
+                newpos = euclid3.Vector3(pos.X, newpos.y, newpos.z)
+            if pos.Y != None:
+                newpos = euclid3.Vector3(newpos.x, pos.Y, newpos.z)
+            if pos.Z != None:
+                newpos = euclid3.Vector3(newpos.x, newpos.y, pos.Z)
+
+        delta = newpos - self.state.pos
+
+        if self.state.motion == self.MachineState.MotionGroup.line:
+            feed = self.state.feed
+        elif self.state.motion == self.MachineState.MotionGroup.fast_move:
+            feed = self.state.fastfeed
         else:
-            for cmd in frame.commands:
-                if cmd.type == "X":
-                    newpos = euclid3.Vector3(cmd.value, newpos.y, newpos.z)
-                elif cmd.type == "Y":
-                    newpos = euclid3.Vector3(newpos.x, cmd.value, newpos.z)
-                elif cmd.type == "Z":
-                    newpos = euclid3.Vector3(newpos.x, newpos.y, cmd.value)
-        for cmd in frame.commands:
-            if cmd.type == "F":
-                self.feed = cmd.value
-        delta = newpos - self.pos
-        if not fast:
-            self.actions.append(linear.LinearMovement(delta, self.feed, self.acc))
-        else:
-            self.actions.append(linear.LinearMovement(delta, self.fastfeed, self.acc))
-        self.pos = newpos
+            raise Exception("Not implemented %s motion state" % self.state.motion)
 
-    def __insert_tobegin(self, frame):
-        x = False
-        y = False
-        z = False
-        for cmd in frame.commands:
-            if cmd.type == "X":
-                x = True
-            elif cmd.type == "Y":
-                y = True
-            elif cmd.type == "Z":
-                z = True
-        self.actions.append(homing.ToBeginMovement(x, y, z))
+        self.actions.append(linear.LinearMovement(delta, feed, self.state.acc))
+        self.state.pos = newpos
+
+    def __insert_homing(self, frame):
+        self.actions.append(homing.ToBeginMovement())
 
     def __insert_pause(self):
         self.actions.append(pause.WaitResume())
 
     def __process(self, frame):
+
+        self.state.process_frame(frame)
+        pos = self.Positioning(frame)
+        feed = self.Feed(frame)
+
+        if feed.F != None:
+            self.__set_feed(feed.F)
+
+        if pos.moving:
+            self.__insert_move(pos)
+
         for cmd in frame.commands:
             if cmd.type == "G":
-                if cmd.value == 0 or cmd.value == 1:
-                    self.__insert_move(frame)
-                elif cmd.value == 28:
-                    self.__insert_tobegin(frame)
-                elif cmd.value == 90:
-                    self.relative = False
-                elif cmd.value == 91:
-                    self.relative = True
-                elif cmd.value == 94:
-                    self.__set_feed(frame)
+                # Not modal commands
+                if cmd.value == 28:
+                    self.__insert_homing(frame)
+
             elif cmd.type == "M":
                 if cmd.value == 0:
                     self.__insert_pause()
-                elif cmd.value == 204:
-                    self.__set_acceleration(frame)
+                else:
+                    raise Exception("Unsupported command M%i" % cmd.value)
+
 
     def __optimize(self):
         prevmove = None
@@ -157,7 +275,7 @@ class Machine(object):
 
                         startfeed = curfeed
                         startfeed = min(startfeed, prevfeed / cosa)
-                        startfeed = min(startfeed, self.jerk / sina)
+                        startfeed = min(startfeed, self.state.jerk / sina)
                         endfeed = startfeed * cosa
 
                         move.feed0 = startfeed
@@ -180,6 +298,7 @@ class Machine(object):
     def load(self, frames):
         for frame in frames:
             self.__process(frame)
+        self.__optimize()
 
     def run(self):
         for a in self.actions:
