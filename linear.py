@@ -9,10 +9,11 @@ class LinearMovement(action.Movement):
         code = g1 + g2
         print(code)
 
-    def __init__(self, delta, feed, acc):
+    def __init__(self, delta, feed, acc, exact_stop):
         action.Movement.__init__(self, feed=feed, acc=acc)
         self.delta = delta
         self.gcode = None
+        self.exact_stop = exact_stop
         if self.delta.magnitude() > 0:
             self.dir = self.delta / self.delta.magnitude()
         else:

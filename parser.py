@@ -32,7 +32,7 @@ class GFrame(object):
 
 class GLineParser(object):
     def __init__(self):
-        pattern = r"(?:%|(?:[ ]*(?:\((.*)\))*[ ]*([A-Z][-|+]?[0-9]*[\.[0-9]*]?))*[ ]*(?:\((.*)\))*[ ]*(?:;(.*))?)"
+        pattern = r"(?:%|(?:[ ]*(?:\((.*)\))*[ ]*([A-Z][-+]?[0-9]*[\.[0-9]*]?))*[ ]*(?:\((.*)\))*[ ]*(?:;(.*))?)"
         self.re = regex.compile(pattern)
 
     def parse(self, line):
