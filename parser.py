@@ -64,7 +64,7 @@ class GLineParser(object):
         cmd = s[0]
         s = s[1:]
         n = s
-        while len(s) > 0 and "0123456789.+-".find(s[0]) != -1:
+        while len(s) > 0 and "0123456789.+-[]#=".find(s[0]) != -1:
             s = s[1:]
 
         if len(s) > 0:
