@@ -5,6 +5,9 @@ import sys
 import getopt
 import abc
 import gi
+import OpenGL
+import OpenGL.GL
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
@@ -35,6 +38,12 @@ class Interface(object):
             self.raw = raw
             self.command = cmd
 
+    def __render_path(self, widget, context, extradata):
+        OpenGL.GL.glClearColor (0.1, 0.1, 0.1, 1.0)
+        OpenGL.GL.glClear (OpenGL.GL.GL_COLOR_BUFFER_BIT)
+        OpenGL.GL.glFlush()
+        return True
+
     def __init__(self, machine):
         self.machine = machine
         builder = Gtk.Builder()
@@ -47,15 +56,36 @@ class Interface(object):
         self.load_menu = builder.get_object("open")
         self.load_menu.connect('activate', self.__load_menu_event)
         
-        
+        self.glarea = builder.get_object("model")
+        self.glarea.connect('render', self.__render_path, None)
 
         self.gstore = builder.get_object("gcodeline")
         self.gcodeview = builder.get_object("gcode")
         linecolumn = Gtk.TreeViewColumn("Line", Gtk.CellRendererText(), text=0)
         self.gcodeview.append_column(linecolumn)
-
         codecolumn = Gtk.TreeViewColumn("Code", Gtk.CellRendererText(), text=1)
         self.gcodeview.append_column(codecolumn)
+
+        self.start = builder.get_object("start")
+        self.start.connect("clicked", self.__start_program)
+
+        self.cont = builder.get_object("continue")
+        self.cont.connect("clicked", self.__continue_program)
+
+    def __select_index(self, index):
+        print("index = %i" % index)
+
+    def __start_program(self, widget):
+        res = self.machine.start(self.__select_index)
+        if res == False:
+            print("Paused")
+        return True
+
+    def __continue_program(self, widget):
+        res = self.machine.run(self.__select_index)
+        if res == False:
+            print("Paused")
+        return True
 
     def __load_menu_event(self, widget):
         dialog = Gtk.FileChooserDialog("Please choose a g-code", self.window,
@@ -66,6 +96,7 @@ class Interface(object):
         if response == Gtk.ResponseType.OK:
             self.load_file(dialog.get_filename())
         dialog.destroy()
+        return True
 
     def load_file(self, name):
         parser = GLineParser()
@@ -84,7 +115,8 @@ class Interface(object):
                 self.gstore.append([lnum + 1, line])
                 lnum += 1
             self.machine.load([frame.command for frame in self.frames])
-        except Exception:
+        except Exception as e:
+            print("Except %s" % e)
             self.machine.init()
 
 def main():

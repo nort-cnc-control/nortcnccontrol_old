@@ -255,7 +255,7 @@ class Machine(object):
         self.init()
 
     def __program_end(self):
-        self.actions.append(program.Finish())
+        self.actions.append((self.index, program.Finish()))
 
     def __set_feed(self, feed):
         if self.state.feed_mode != self.PositioningState.FeedRateGroup.feed:
@@ -295,22 +295,22 @@ class Machine(object):
         else:
             raise Exception("Not implemented %s motion state" % self.state.motion)
 
-        self.actions.append(linear.LinearMovement(delta, feed, self.state.acc, exact_stop))
+        self.actions.append((self.index, linear.LinearMovement(delta, feed, self.state.acc, exact_stop)))
         self.state.pos = newpos
 
     def __insert_homing(self, frame):
-        self.actions.append(homing.ToBeginMovement())
+        self.actions.append((self.index, homing.ToBeginMovement()))
 
     def __insert_pause(self):
-        self.actions.append(pause.WaitResume())
+        self.actions.append((self.index, pause.WaitResume()))
 
     def __insert_select_tool(self, tool):
         self.toolstate.tool = tool
-        self.actions.append(tools.WaitTool(tool))
+        self.actions.append((self.index, tools.WaitTool(tool)))
 
     def __insert_set_speed(self, speed):
-        self.toolstate.sped = speed
-        self.actions.append(tools.SetSpeed(speed))
+        self.toolstate.speed = speed
+        self.actions.append((self.index, tools.SetSpeed(speed)))
 
     def __process_begin(self, frame):
         self.toolstate.process_begin(frame)
@@ -353,18 +353,20 @@ class Machine(object):
                 self.__program_end()
 
     def __process(self, frame):
-        line_number = self.LineNumber(frame)
+        self.line_number = self.LineNumber(frame)
 
         self.__process_begin(frame)
         self.__process_move(frame)
         self.__process_end(frame)
+
+        self.index += 1
 
     def __optimize(self):
         prevmove = None
         prevfeed = 0
         prevdir = euclid3.Vector3(0, 0, 0)
 
-        for move in self.actions:
+        for (_, move) in self.actions:
 
             if move.is_moving() == False:
                 prevmove = None
@@ -419,6 +421,9 @@ class Machine(object):
             prevdir = move.dir1()
 
     def init(self):
+        self.index = 0
+        self.line_number = None
+        self.iter = 0
         self.actions = []
         self.state = self.PositioningState()
         self.toolstate = self.ToolState()
@@ -430,6 +435,17 @@ class Machine(object):
             self.__process(frame)
         self.__optimize()
 
-    def run(self):
-        for a in self.actions:
-            a.act()
+    def run(self, indexcb = None):
+        while self.iter < len(self.actions):
+            index = self.actions[self.iter][0]
+            if indexcb != None:
+                indexcb(index)
+            cont = self.actions[self.iter][1].act()
+            self.iter += 1
+            if not cont:
+                return False
+        return True
+
+    def start(self, indexcb=None):
+        self.iter = 0
+        return self.run(indexcb)

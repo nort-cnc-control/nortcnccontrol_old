@@ -8,6 +8,7 @@ class LinearMovement(action.Movement):
         g2 = "X%.2f Y%.2f Z%.2f" % (self.delta.x, self.delta.y, self.delta.z)
         code = g1 + g2
         print(code)
+        return True
 
     def __init__(self, delta, feed, acc, exact_stop):
         action.Movement.__init__(self, feed=feed, acc=acc)

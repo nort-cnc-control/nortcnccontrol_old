@@ -7,6 +7,7 @@ class WaitTool(action.Action):
 
     def act(self):
         print("insert tool %i" % self.tool)
+        return False
 
 class SetSpeed(action.Action):
     def __init__(self, speed):
@@ -14,3 +15,4 @@ class SetSpeed(action.Action):
 
     def act(self):
         print("set spindle speed %i" % self.speed)
+        return True
