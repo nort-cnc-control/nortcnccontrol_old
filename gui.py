@@ -1,3 +1,5 @@
+import event
+
 import gi
 import OpenGL
 import OpenGL.GL
@@ -5,15 +7,8 @@ import OpenGL.GL
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
-from parser import GLineParser
 
 class Interface(object):
-
-    class GCodeRow(object):
-
-        def __init__(self, raw, cmd):
-            self.raw = raw
-            self.command = cmd
 
     def __render_path(self, widget, context, extradata):
         OpenGL.GL.glClearColor(0.1, 0.1, 0.1, 1.0)
@@ -21,8 +16,12 @@ class Interface(object):
         OpenGL.GL.glFlush()
         return True
 
-    def __init__(self, machine):
-        self.machine = machine
+    def __init__(self):
+        self.load_file        = event.EventEmitter()
+        self.start_clicked    = event.EventEmitter()
+        self.continue_clicked = event.EventEmitter()
+        self.pause_clicked    = event.EventEmitter()
+
         builder = Gtk.Builder()
         builder.add_from_file("interface.glade")
         self.window = builder.get_object("window")
@@ -53,16 +52,10 @@ class Interface(object):
         print("index = %i" % index)
 
     def __start_program(self, widget):
-        res = self.machine.start(self.__select_index)
-        if res is False:
-            print("Paused")
-        return True
-
+        self.start_clicked()
+    
     def __continue_program(self, widget):
-        res = self.machine.run(self.__select_index)
-        if res is False:
-            print("Paused")
-        return True
+        self.continue_clicked()
 
     def __load_menu_event(self, widget):
         dialog = Gtk.FileChooserDialog("Please choose a g-code", self.window,
@@ -74,41 +67,12 @@ class Interface(object):
             self.load_file(dialog.get_filename())
         dialog.destroy()
         return True
-
-    def __readfile(self, infile):
-        res = []
-        if infile is None:
-            f = sys.stdin
-        else:
-            f = open(infile, "r")
-        gcode = f.readlines()
-        if infile != None:
-            f.close()
-        for l in gcode:
-            res.append(l.splitlines()[0])
-        return res
-
-    def load_file(self, name):
-        """ Load and parse gcode file """
-        parser = GLineParser()
-        gcode = self.__readfile(name)
-        self.frames = []
-
+    
+    def clear_commands(self):
         self.gstore.clear()
 
-        try:
-            lnum = 0
-            for line in gcode:
-                frame = parser.parse(line)
-                if frame == None:
-                    raise Exception("Invalid line")
-                self.frames.append(self.GCodeRow(line, frame))
-                self.gstore.append([lnum + 1, line])
-                lnum += 1
-            self.machine.load([frame.command for frame in self.frames])
-        except Exception as e:
-            print("Except %s" % e)
-            self.machine.init()
+    def add_command(self, id, line):
+        self.gstore.append([id, line])
 
     def run(self):
         Gtk.main()
