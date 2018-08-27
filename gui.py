@@ -7,8 +7,7 @@ import OpenGL.GL
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
-
-class Interface(object):
+class Interface(object):    
 
     def __render_path(self, widget, context, extradata):
         OpenGL.GL.glClearColor(0.1, 0.1, 0.1, 1.0)
@@ -48,9 +47,6 @@ class Interface(object):
         self.cont = builder.get_object("continue")
         self.cont.connect("clicked", self.__continue_program)
 
-    def __select_index(self, index):
-        print("index = %i" % index)
-
     def __start_program(self, widget):
         self.start_clicked()
     
@@ -70,9 +66,23 @@ class Interface(object):
     
     def clear_commands(self):
         self.gstore.clear()
+        self.id = 1
 
-    def add_command(self, id, line):
-        self.gstore.append([id, line])
+    def add_command(self, line):
+        self.gstore.append([self.id, line])
+        self.id += 1
+
+    def show_ok(self, text):
+        dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.INFO,
+            Gtk.ButtonsType.OK, "OK")
+        dialog.format_secondary_text(text)
+        dialog.run()
+        dialog.destroy()
+
+    def select_line(self, line):
+        path = Gtk.TreePath(line)
+        selection = self.gcodeview.get_selection()
+        selection.select_path(path)
 
     def run(self):
         Gtk.main()

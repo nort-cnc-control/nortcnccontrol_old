@@ -1,6 +1,15 @@
 import abc
+import event
 
 class Action(object):
+    def __init__(self):
+        self.acted = event.EventEmitter()
+
+    def run(self):
+        res = self.act()
+        self.acted()
+        return res
+
     @abc.abstractmethod
     def act(self):
         return False
@@ -28,6 +37,7 @@ class Movement(Action):
         return None
 
     def __init__(self, feed, acc):
+        Action.__init__(self)
         self.feed = feed
         self.feed0 = 0
         self.feed1 = 0

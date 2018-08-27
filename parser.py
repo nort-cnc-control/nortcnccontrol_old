@@ -27,6 +27,8 @@ class GFrame(object):
         self.comments.append(comment)
 
     def __repr__(self):
+        if len(self.commands) == 0:
+            return ""
         res = str(self.commands[0])
         for cmd in self.commands[1:]:
             res += " " + str(cmd)

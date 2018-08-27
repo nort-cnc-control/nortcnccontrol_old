@@ -22,20 +22,29 @@ class Controller(object):
         self.interface.load_file += self.__on_load_file
         self.interface.start_clicked += self.__on_start
         self.interface.continue_clicked += self.__on_continue
+        self.conv.line_selected += self.__line_number
+        self.conv.finished += self.__finished
+        self.conv.tool_selected += self.__tool_selected
         if file != None:
             self.__on_load_file(file)
 
     def run(self):
         self.interface.run()
 
-    def __indexcb(self, line):
-        print("line %i" % line)
+    def __finished(self):
+        self.interface.show_ok("G-Code program finished")
+
+    def __tool_selected(self, tool):
+        self.interface.show_ok("Insert tool #%i" % tool)
+
+    def __line_number(self, line):
+        self.interface.select_line(line)
 
     def __on_start(self):
-        self.conv.start(self.__indexcb)
+        self.conv.start()
 
     def __on_continue(self):
-        self.conv.run(self.__indexcb)
+        self.conv.run()
 
     def __readfile(self, infile):
         res = []
@@ -59,14 +68,12 @@ class Controller(object):
         self.interface.clear_commands()
 
         try:
-            lnum = 0
             for line in gcode:
                 frame = parser.parse(line)
                 if frame == None:
                     raise Exception("Invalid line")
                 self.frames.append(frame)
-                self.interface.add_command(lnum + 1, line)
-                lnum += 1
+                self.interface.add_command(line)
 
             self.conv.load(self.frames)
         except Exception as e:

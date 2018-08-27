@@ -13,6 +13,8 @@ import pause
 import tools
 import program
 
+import event
+
 # Supported codes
 #
 # G0/G1
@@ -213,7 +215,6 @@ class Machine(object):
                         raise Exception("S meets 2 times")
                     self.speed = cmd.value
 
-
     class Tool(object):
 
         tool = None
@@ -224,7 +225,6 @@ class Machine(object):
                     if self.tool != None:
                         raise Exception("T meets 2 times")
                     self.tool = cmd.value
-
 
     class LineNumber(object):
 
@@ -252,10 +252,20 @@ class Machine(object):
                     break
 
     def __init__(self):
+        self.started       = event.EventEmitter()
+        self.paused        = event.EventEmitter()
+        self.finished      = event.EventEmitter()
+        self.line_selected = event.EventEmitter()
+        self.tool_selected = event.EventEmitter()
         self.init()
 
     def __program_end(self):
-        self.actions.append((self.index, program.Finish()))
+        act = program.Finish()
+        act.acted += self.__finish
+        self.actions.append((self.index, act))
+
+    def __finish(self):
+        self.finished()
 
     def __set_feed(self, feed):
         if self.state.feed_mode != self.PositioningState.FeedRateGroup.feed:
@@ -306,7 +316,12 @@ class Machine(object):
 
     def __insert_select_tool(self, tool):
         self.toolstate.tool = tool
-        self.actions.append((self.index, tools.WaitTool(tool)))
+        tl = tools.WaitTool(tool)
+        tl.tool_changed += self.__tool_selected
+        self.actions.append((self.index, tl))
+
+    def __tool_selected(self, tool):
+        self.tool_selected(tool)
 
     def __insert_set_speed(self, speed):
         self.toolstate.speed = speed
@@ -371,7 +386,7 @@ class Machine(object):
             if move.is_moving() == False:
                 prevmove = None
                 continue
-        
+
             curfeed = move.feed
             curdir = move.dir0()
 
@@ -427,25 +442,29 @@ class Machine(object):
         self.actions = []
         self.state = self.PositioningState()
         self.toolstate = self.ToolState()
-        self.__insert_select_tool(self.toolstate.tool)
 
     def load(self, frames):
         self.init()
         for frame in frames:
             self.__process(frame)
         self.__optimize()
+        if len(self.actions) > 0:
+            self.line_selected(self.actions[0][0])
 
-    def run(self, indexcb = None):
+    def run(self):
+        self.started()
         while self.iter < len(self.actions):
             index = self.actions[self.iter][0]
-            if indexcb != None:
-                indexcb(index)
-            cont = self.actions[self.iter][1].act()
+            frame = self.actions[self.iter][1]
+            self.line_selected(index)
+            cont = frame.run()
             self.iter += 1
             if not cont:
+                self.paused()
                 return False
+        self.finished()
         return True
 
-    def start(self, indexcb=None):
+    def start(self):
         self.iter = 0
-        return self.run(indexcb)
+        return self.run()
