@@ -28,8 +28,8 @@ class Interface(object):
 
         self.window.connect('destroy', Gtk.main_quit)
 
-        self.load_menu = builder.get_object("open")
-        self.load_menu.connect('activate', self.__load_menu_event)
+        load_menu = builder.get_object("open")
+        load_menu.connect('activate', self.__load_menu_event)
 
         self.glarea = builder.get_object("model")
         self.glarea.connect('render', self.__render_path, None)
@@ -41,11 +41,11 @@ class Interface(object):
         codecolumn = Gtk.TreeViewColumn("Code", Gtk.CellRendererText(), text=1)
         self.gcodeview.append_column(codecolumn)
 
-        self.start = builder.get_object("start")
-        self.start.connect("clicked", self.__start_program)
+        start = builder.get_object("start")
+        start.connect("clicked", self.__start_program)
 
-        self.cont = builder.get_object("continue")
-        self.cont.connect("clicked", self.__continue_program)
+        cont = builder.get_object("continue")
+        cont.connect("clicked", self.__continue_program)
 
     def __start_program(self, widget):
         self.start_clicked()

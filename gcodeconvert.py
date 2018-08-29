@@ -4,11 +4,12 @@ import euclid3
 import sys
 import getopt
 import abc
-
+import threading
 
 from gui import Interface
 from machine import Machine
 from parser import GLineParser
+from machinethread import MachineThread
 
 def usage():
     pass
@@ -17,41 +18,20 @@ class Controller(object):
 
     def __init__(self, file = None):
         self.frames = []
-        self.conv = Machine()
         self.interface = Interface()
         self.interface.load_file += self.__on_load_file
         self.interface.start_clicked += self.__on_start
         self.interface.continue_clicked += self.__on_continue
-        self.conv.line_selected += self.__line_number
-        self.conv.finished += self.__finished
-        self.conv.tool_selected += self.__tool_selected
-        if file != None:
-            self.__on_load_file(file)
 
-    def run(self):
-        self.interface.run()
-
-    def __finished(self):
-        self.interface.show_ok("G-Code program finished")
-
-    def __tool_selected(self, tool):
-        self.interface.show_ok("Insert tool #%i" % tool)
-
-    def __line_number(self, line):
-        self.interface.select_line(line)
-
-    def __on_start(self):
-        self.conv.start()
-
-    def __on_continue(self):
-        self.conv.run()
+        self.continue_event = threading.Event()
+        self.__on_load_file(file)
+        self.machine_thread = None
 
     def __readfile(self, infile):
-        res = []
         if infile is None:
-            f = sys.stdin
-        else:
-            f = open(infile, "r")
+            return []
+        res = []
+        f = open(infile, "r")
         gcode = f.readlines()
         if infile != None:
             f.close()
@@ -59,7 +39,7 @@ class Controller(object):
             res.append(l.splitlines()[0])
         return res
 
-    def __on_load_file(self, name):
+    def __load_file(self, name):
         """ Load and parse gcode file """
         parser = GLineParser()
         gcode = self.__readfile(name)
@@ -75,10 +55,29 @@ class Controller(object):
                 self.frames.append(frame)
                 self.interface.add_command(line)
 
-            self.conv.load(self.frames)
+            self.machine.load(self.frames)
         except Exception as e:
             print("Except %s" % e)
-            self.conv.init()
+            self.machine.init()
+
+    def run(self):
+        self.interface.run()
+
+    def __on_start(self):
+        self.continue_event.clear()
+        if self.machine_thread != None:
+            self.machine_thread.dispose()
+        self.machine_thread = MachineThread(self.machine, self.continue_event)
+        self.machine_thread.start()
+
+    def __on_continue(self):
+        self.continue_event.set()
+
+    def __on_load_file(self, name):
+        """ Load and parse gcode file """
+        self.interface.clear_commands()
+        self.machine = Machine()
+        self.__load_file(name)
 
 def main():
     

@@ -14,6 +14,7 @@ import tools
 import program
 
 import event
+import threading
 
 # Supported codes
 #
@@ -438,10 +439,13 @@ class Machine(object):
     def init(self):
         self.index = 0
         self.line_number = None
-        self.iter = 0
         self.actions = []
         self.state = self.PositioningState()
         self.toolstate = self.ToolState()
+        self.work_init()
+
+    def work_init(self):
+        self.iter = 0
 
     def load(self, frames):
         self.init()
@@ -451,7 +455,7 @@ class Machine(object):
         if len(self.actions) > 0:
             self.line_selected(self.actions[0][0])
 
-    def run(self):
+    def work_continue(self):
         self.started()
         while self.iter < len(self.actions):
             index = self.actions[self.iter][0]
@@ -465,6 +469,6 @@ class Machine(object):
         self.finished()
         return True
 
-    def start(self):
-        self.iter = 0
-        return self.run()
+    def work_start(self):
+        self.work_init()
+        return self.work_continue()

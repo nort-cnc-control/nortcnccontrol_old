@@ -1,5 +1,6 @@
 import euclid3
 import action
+import time
 
 class LinearMovement(action.Movement):
 
@@ -8,6 +9,7 @@ class LinearMovement(action.Movement):
         g2 = "X%.2f Y%.2f Z%.2f" % (self.delta.x, self.delta.y, self.delta.z)
         code = g1 + g2
         print(code)
+        time.sleep(1)
         return True
 
     def __init__(self, delta, feed, acc, exact_stop):
@@ -19,7 +21,7 @@ class LinearMovement(action.Movement):
             self.dir = self.delta / self.delta.magnitude()
         else:
             self.dir = euclid3.Vector3()
-    
+
     def dir0(self):
         return self.dir
 
