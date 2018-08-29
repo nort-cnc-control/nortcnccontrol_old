@@ -48,9 +48,11 @@ class Controller(object):
                         self.controller.machine_thread.start()
 
                     elif type(uievent) == InterfaceThread.UIEventDialogConfirmed:
-                        if type(uievent.reason) == MachineThread.MachineToolEvent:
-                            self.controller.continue_event.set()
-
+                        pass
+                        #if type(uievent.reason) == MachineThread.MachineToolEvent:
+                        #    self.controller.continue_event.set()
+                    elif type(uievent) == InterfaceThread.UIEventLoadFile:
+                        self.controller.load_file(uievent.filename)
                 except queue.Empty:
                     pass
     
@@ -92,7 +94,7 @@ class Controller(object):
 
         self.finish_event = threading.Event()
         self.continue_event = threading.Event()
-        self.__on_load_file(file)
+        self.load_file(file)
         
         self.machine_events = queue.Queue()
         self.machine_thread = None
@@ -115,6 +117,7 @@ class Controller(object):
         gcode = self.__readfile(name)
         self.frames = []
 
+        print("load")
         self.uicommands.put(InterfaceThread.UICommand.Clear)
 
         try:
@@ -141,7 +144,7 @@ class Controller(object):
         m2ui.join()
         ui2m.join()
 
-    def __on_load_file(self, name):
+    def load_file(self, name):
         """ Load and parse gcode file """
         self.machine = Machine()
         self.__load_file(name)

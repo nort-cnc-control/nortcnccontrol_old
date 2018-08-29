@@ -181,6 +181,10 @@ class InterfaceThread(threading.Thread):
         def __init__(self, reason=None):
             self.reason = reason
 
+    class UIEventLoadFile(object):
+        def __init__(self, name):
+            self.filename = name
+
     class UICommand(object):
         Finish = 0
         ModeInitial = 1
@@ -211,6 +215,7 @@ class InterfaceThread(threading.Thread):
         self.ui.stop_clicked += self.__emit_stop
         self.ui.pause_clicked += self.__emit_pause
         self.ui.continue_clicked += self.__emit_continue
+        self.ui.load_file += self.__emit_load_file
 
     def __emit_start(self):
         self.events.put(self.UIEvent.Start)
@@ -223,6 +228,9 @@ class InterfaceThread(threading.Thread):
 
     def __emit_continue(self):
         self.events.put(self.UIEvent.Continue)
+
+    def __emit_load_file(self, name):
+        self.events.put(self.UIEventLoadFile(name))
 
     def run(self):
         helper = self.QueueHelperThread(self)
