@@ -33,8 +33,10 @@ class Controller(object):
                     uievent = self.controller.uievents.get(timeout=0.5)
                     if uievent == InterfaceThread.UIEvent.Finish:
                         self.controller.finish_event.set()
+
                     elif uievent == InterfaceThread.UIEvent.Continue:
                         self.controller.continue_event.set()
+
                     elif uievent == InterfaceThread.UIEvent.Start:
                         self.controller.continue_event.clear()
                         if self.controller.machine_thread != None:
@@ -44,6 +46,11 @@ class Controller(object):
                                             self.controller.finish_event,
                                             self.controller.machine_events)
                         self.controller.machine_thread.start()
+
+                    elif type(uievent) == InterfaceThread.UIEventDialogConfirmed:
+                        if type(uievent.reason) == MachineThread.MachineToolEvent:
+                            self.controller.continue_event.set()
+
                 except queue.Empty:
                     pass
     
@@ -56,16 +63,20 @@ class Controller(object):
             while not self.controller.finish_event.is_set():
                 try:
                     mevent = self.controller.machine_events.get(timeout=0.5)
+
                     if type(mevent) == MachineThread.MachineLineEvent:
                         line = mevent.line
                         self.controller.uicommands.put(InterfaceThread.UICommandActiveLine(line))
+
                     elif type(mevent) == MachineThread.MachineToolEvent:
                         tool = mevent.tool
                         message = "Insert tool #%i" % tool
                         self.controller.uicommands.put(InterfaceThread.UICommand.ModePaused)
-                        self.controller.uicommands.put(InterfaceThread.UICommandShowDialog(message))
+                        self.controller.uicommands.put(InterfaceThread.UICommandShowDialog(message, mevent))
+
                     elif mevent == MachineThread.MachineEvent.Running:
                         self.controller.uicommands.put(InterfaceThread.UICommand.ModeRun)
+
                     elif mevent == MachineThread.MachineEvent.Finished:
                         self.controller.uicommands.put(InterfaceThread.UICommand.ModeInitial)
                         self.controller.uicommands.put(InterfaceThread.UICommandShowDialog("Program finished"))

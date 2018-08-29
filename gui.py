@@ -136,19 +136,27 @@ class InterfaceThread(threading.Thread):
             if item == self.ift.UICommand.Finish:
                 Gtk.main_quit()
                 self.ift.finish_event.set()
+
             elif item == self.ift.UICommand.ModeInitial:
                 self.ift.ui.switch_to_initial_mode()
+
             elif item == self.ift.UICommand.ModePaused:
                 self.ift.ui.switch_to_paused_mode()
+
             elif item == self.ift.UICommand.ModeRun:
                 self.ift.ui.switch_to_running_mode()
+
             elif item == self.ift.UICommand.Clear:
                 self.ift.ui.clear_commands()
+
             elif type(item) == self.ift.UICommandShowDialog:
                 self.ift.ui.show_ok(item.message)
-                self.ift.events.put(self.ift.UIEventDialogConfirmed())
+                notice = self.ift.UIEventDialogConfirmed(item.event)
+                self.ift.events.put(notice)
+
             elif type(item) == self.ift.UICommandActiveLine:
                 self.ift.ui.select_line(item.line)
+
             elif type(item) == self.ift.UICommandAddLine:
                 self.ift.ui.add_command(item.command)
             return False
@@ -170,7 +178,8 @@ class InterfaceThread(threading.Thread):
         Continue = 4
 
     class UIEventDialogConfirmed(object):
-        pass
+        def __init__(self, reason=None):
+            self.reason = reason
 
     class UICommand(object):
         Finish = 0
@@ -180,8 +189,9 @@ class InterfaceThread(threading.Thread):
         Clear = 4
 
     class UICommandShowDialog(object):
-        def __init__(self, message):
+        def __init__(self, message, event=None):
             self.message = message
+            self.event = event
 
     class UICommandActiveLine(object):
         def __init__(self, line):
@@ -210,7 +220,7 @@ class InterfaceThread(threading.Thread):
     
     def __emit_pause(self):
         self.events.put(self.UIEvent.Pause)
-    
+
     def __emit_continue(self):
         self.events.put(self.UIEvent.Continue)
 
