@@ -19,6 +19,8 @@ from converter.machine import Machine
 from converter.parser import GLineParser
 from converter.machinethread import MachineThread
 
+from sender import sender
+
 def usage():
     pass
 
@@ -77,13 +79,20 @@ class Controller(object):
                         message = "Insert tool #%i" % tool
                         self.controller.uicommands.put(InterfaceThread.UICommand.ModePaused)
                         self.controller.uicommands.put(InterfaceThread.UICommandShowDialog(message, mevent))
-
+                    
+                    elif type(mevent) == MachineThread.MachineEventPaused:
+                        self.controller.uicommands.put(InterfaceThread.UICommand.ModePaused)
+                        if mevent.display:
+                            self.controller.uicommands.put(InterfaceThread.UICommandShowDialog("Paused"))
+                    
                     elif mevent == MachineThread.MachineEvent.Running:
                         self.controller.uicommands.put(InterfaceThread.UICommand.ModeRun)
 
                     elif mevent == MachineThread.MachineEvent.Finished:
                         self.controller.uicommands.put(InterfaceThread.UICommand.ModeInitial)
                         self.controller.uicommands.put(InterfaceThread.UICommandShowDialog("Program finished"))
+
+                    
                 except queue.Empty:
                     pass
 
@@ -147,7 +156,8 @@ class Controller(object):
 
     def load_file(self, name):
         """ Load and parse gcode file """
-        self.machine = Machine()
+        self.sender = sender.SerialSender("/dev/pts/7", 57600)
+        self.machine = Machine(self.sender)
         self.__load_file(name)
 
 def main():

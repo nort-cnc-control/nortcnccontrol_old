@@ -10,8 +10,7 @@ class SerialSender(object):
         self.port = port
         self.baudrate = bdrate
         self.ser = serial.Serial(self.port, self.baudrate,
-                                 bytesize=8, parity='N', stopbits=1,
-                                 timeout=1)
+                                 bytesize=8, parity='N', stopbits=1)
 
     def queue_command(self, command):
         cmd = command + "\n"

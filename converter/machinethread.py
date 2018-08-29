@@ -1,5 +1,6 @@
 import threading
 import enum
+import traceback
 
 class MachineThread(threading.Thread):
 
@@ -14,6 +15,11 @@ class MachineThread(threading.Thread):
     class MachineEvent(enum.Enum):
         Finished = 1
         Running = 2
+        Paused = 3
+
+    class MachineEventPaused(object):
+        def __init__(self, display):
+            self.display = display
 
     def __init__(self, machine, continue_event, finish_event, machine_events):
         threading.Thread.__init__(self)
@@ -26,11 +32,13 @@ class MachineThread(threading.Thread):
         self.machine.line_selected += self.__line_number
         self.machine.finished += self.__finished
         self.machine.tool_selected += self.__tool_selected
+        self.machine.paused += self.__m_paused
 
     def dispose(self):
         self.machine.line_selected -= self.__line_number
         self.machine.finished -= self.__finished
         self.machine.tool_selected -= self.__tool_selected
+        self.machine.paused -= self.__m_paused
         self.machine = None
         self.disposed = True
 
@@ -46,6 +54,9 @@ class MachineThread(threading.Thread):
 
     def __tool_selected(self, tool):
         self.machine_events.put(self.MachineToolEvent(tool))
+
+    def __m_paused(self, display):
+        self.machine_events.put(self.MachineEventPaused(display))
 
     def run(self):
         end = self.machine.work_init()

@@ -6,12 +6,14 @@ import math
 
 from enum import Enum
 
-from actions import homing
-from actions import linear
-from actions import action
-from actions import pause
-from actions import tools
-from actions import program
+from . import actions
+
+from .actions import homing
+from .actions import linear
+from .actions import action
+from .actions import pause
+from .actions import tools
+from .actions import program
 
 import event
 import threading
@@ -307,18 +309,27 @@ class Machine(object):
         else:
             raise Exception("Not implemented %s motion state" % self.state.motion)
 
-        self.actions.append((self.index, linear.LinearMovement(delta, feed, self.state.acc, exact_stop, self.sender)))
+        self.actions.append((self.index, linear.LinearMovement(delta,
+                                            feed=feed,
+                                            acc=self.state.acc,
+                                            exact_stop=exact_stop,
+                                            sender=self.sender)))
         self.state.pos = newpos
 
     def __insert_homing(self, frame):
-        self.actions.append((self.index, homing.ToBeginMovement(self.sender)))
+        self.actions.append((self.index, homing.ToBeginMovement(sender=self.sender)))
 
     def __insert_pause(self):
-        self.actions.append((self.index, pause.WaitResume(self.sender)))
+        p = pause.WaitResume(sender=self.sender)
+        p.paused += self.__paused
+        self.actions.append((self.index, p))
+
+    def __paused(self):
+        self.display_paused = True
 
     def __insert_select_tool(self, tool):
         self.toolstate.tool = tool
-        tl = tools.WaitTool(tool, self.sender)
+        tl = tools.WaitTool(tool, sender=self.sender)
         tl.tool_changed += self.__tool_selected
         self.actions.append((self.index, tl))
 
@@ -327,7 +338,7 @@ class Machine(object):
 
     def __insert_set_speed(self, speed):
         self.toolstate.speed = speed
-        self.actions.append((self.index, tools.SetSpeed(speed)))
+        self.actions.append((self.index, tools.SetSpeed(speed, sender=self.sender)))
 
     def __process_begin(self, frame):
         self.toolstate.process_begin(frame)
@@ -447,6 +458,9 @@ class Machine(object):
 
     def work_init(self):
         self.iter = 0
+        self.display_paused = False
+        for (_, act) in self.actions:
+            act.completed = False
 
     def load(self, frames):
         self.init()
@@ -465,7 +479,8 @@ class Machine(object):
             cont = frame.run()
             self.iter += 1
             if not cont:
-                self.paused()
+                self.paused(self.display_paused)
+                self.display_paused = False
                 return False
         self.finished()
         return True
