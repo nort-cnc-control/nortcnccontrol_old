@@ -11,11 +11,13 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib
 
-from gui import InterfaceThread
-from machine import Machine
-from parser import GLineParser
-from machinethread import MachineThread
-import machinethread
+from ui import guithread
+from ui.guithread import InterfaceThread
+
+from converter import machine
+from converter.machine import Machine
+from converter.parser import GLineParser
+from converter.machinethread import MachineThread
 
 def usage():
     pass
@@ -117,7 +119,6 @@ class Controller(object):
         gcode = self.__readfile(name)
         self.frames = []
 
-        print("load")
         self.uicommands.put(InterfaceThread.UICommand.Clear)
 
         try:

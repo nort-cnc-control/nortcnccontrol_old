@@ -1,4 +1,4 @@
-import action
+from . import action
 
 class ToBeginMovement(action.Action):
 

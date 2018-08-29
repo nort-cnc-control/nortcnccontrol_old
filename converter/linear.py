@@ -1,6 +1,7 @@
 import euclid3
-import action
 import time
+
+from . import action
 
 class LinearMovement(action.Movement):
 

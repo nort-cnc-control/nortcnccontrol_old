@@ -6,12 +6,12 @@ import math
 
 from enum import Enum
 
-import homing
-import linear
-import action
-import pause
-import tools
-import program
+from . import homing
+from . import linear
+from . import action
+from . import pause
+from . import tools
+from . import program
 
 import event
 import threading

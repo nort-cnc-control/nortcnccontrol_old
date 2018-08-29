@@ -1,5 +1,6 @@
-import action
 import event
+
+from . import action
 
 class WaitTool(action.Action):
 
