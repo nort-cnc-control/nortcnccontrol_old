@@ -14,9 +14,14 @@ from gi.repository import Gtk, GLib
 class Interface(object):    
 
     def __render_path(self, widget, context, extradata):
+        context.make_current()
         OpenGL.GL.glClearColor(0.1, 0.1, 0.1, 1.0)
         OpenGL.GL.glClear(OpenGL.GL.GL_COLOR_BUFFER_BIT)
         OpenGL.GL.glFlush()
+        return True
+
+    def __resize(self, widget, width, height):
+        widget.queue_draw()
         return True
 
     def __init__(self):
@@ -36,8 +41,10 @@ class Interface(object):
         load_menu = builder.get_object("open")
         load_menu.connect('activate', self.__load_menu_event)
 
+
         self.glarea = builder.get_object("model")
         self.glarea.connect('render', self.__render_path, None)
+        self.glarea.connect('resize', self.__resize)
 
         self.gstore = builder.get_object("gcodeline")
         self.gcodeview = builder.get_object("gcode")
