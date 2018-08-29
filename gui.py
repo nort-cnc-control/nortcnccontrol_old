@@ -5,7 +5,7 @@ import OpenGL
 import OpenGL.GL
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
+from gi.repository import Gtk, GLib
 
 class Interface(object):    
 
@@ -20,6 +20,7 @@ class Interface(object):
         self.start_clicked    = event.EventEmitter()
         self.continue_clicked = event.EventEmitter()
         self.pause_clicked    = event.EventEmitter()
+        self.stop_clicked     = event.EventEmitter()
 
         builder = Gtk.Builder()
         builder.add_from_file("interface.glade")
@@ -47,11 +48,19 @@ class Interface(object):
         cont = builder.get_object("continue")
         cont.connect("clicked", self.__continue_program)
 
+        stop = builder.get_object("stop")
+        stop.connect("clicked", self.__stop_program)
+
+
     def __start_program(self, widget):
         self.start_clicked()
     
     def __continue_program(self, widget):
         self.continue_clicked()
+
+    def __stop_program(self, widget):
+        self.stop_clicked()
+    
 
     def __load_menu_event(self, widget):
         dialog = Gtk.FileChooserDialog("Please choose a g-code", self.window,

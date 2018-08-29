@@ -1,11 +1,31 @@
 import threading
 
+class MachineEvent(object):
+    pass
+
+class LineEvent(MachineEvent):
+
+    def __init__(self, line):
+        MachineEvent.__init__(self)
+        self.line = line
+
+class ToolEvent(MachineEvent):
+
+    def __init__(self, tool):
+        MachineEvent.__init__(self)
+        self.tool = tool
+
+class FinishedEvent(object):
+    pass
+
 class MachineThread(threading.Thread):
 
-    def __init__(self, machine, continue_event):
+    def __init__(self, machine, continue_event, finish_event, queue):
         threading.Thread.__init__(self)
         self.machine = machine
         self.finished = False
+        self.queue = queue
+        self.disposed = False
         self.continue_event = continue_event
         self.machine.line_selected += self.__line_number
         self.machine.finished += self.__finished
@@ -16,20 +36,23 @@ class MachineThread(threading.Thread):
         self.machine.finished -= self.__finished
         self.machine.tool_selected -= self.__tool_selected
         self.machine = None
+        self.disposed = True
 
     def __line_number(self, line):
-        print("line #%i" % line)
+        self.queue.put(LineEvent(line))
 
     def __finished(self):
+        self.queue.put(FinishedEvent())
         self.finished = True
-        print("finished")
-        
+
     def __tool_selected(self, tool):
-        print("Tool #%i" % tool)
+        self.queue.put(ToolEvent(tool))
 
     def run(self):
         end = self.machine.work_init()
         while not self.finished:
+            if self.disposed:
+                return
             end = self.machine.work_continue()
             self.finished = end or self.finished
             if not end and not self.finished:
