@@ -18,6 +18,9 @@ class ToolEvent(MachineEvent):
 class FinishedEvent(object):
     pass
 
+class StartedEvent(object):
+    pass
+
 class MachineThread(threading.Thread):
 
     def __init__(self, machine, continue_event, finish_event, queue):
@@ -27,6 +30,7 @@ class MachineThread(threading.Thread):
         self.queue = queue
         self.disposed = False
         self.continue_event = continue_event
+        self.machine.started += self.__m_started
         self.machine.line_selected += self.__line_number
         self.machine.finished += self.__finished
         self.machine.tool_selected += self.__tool_selected
@@ -37,6 +41,9 @@ class MachineThread(threading.Thread):
         self.machine.tool_selected -= self.__tool_selected
         self.machine = None
         self.disposed = True
+
+    def __m_started(self):
+        self.queue.put(StartedEvent())
 
     def __line_number(self, line):
         self.queue.put(LineEvent(line))

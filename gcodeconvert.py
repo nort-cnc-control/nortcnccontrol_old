@@ -37,6 +37,18 @@ class Controller(object):
             self.interface.select_line(line)
             return False
 
+        def __running_state(self):
+            self.interface.switch_to_running_mode()
+            return False
+
+        def __initial_state(self):
+            self.interface.switch_to_initial_mode()
+            return False
+
+        def __paused_state(self):
+            self.interface.switch_to_paused_mode()
+            return False
+
         def run(self):
             while not self.finish_event.is_set():
                 try:
@@ -45,14 +57,19 @@ class Controller(object):
                     continue
                 if type(item) == machinethread.FinishedEvent:
                     GLib.idle_add(self.__show, "GCode finished")
+                    GLib.idle_add(self.__initial_state)
                 elif type(item) == machinethread.LineEvent:
                     GLib.idle_add(self.__select_line, item.line)
                 elif type(item) == machinethread.ToolEvent:
                     GLib.idle_add(self.__show, "Please insert tool #%i" % item.tool)
+                    GLib.idle_add(self.__paused_state)
+                elif type(item) == machinethread.StartedEvent:
+                    GLib.idle_add(self.__running_state)
 
     def __init__(self, file = None):
         self.frames = []
         self.interface = Interface()
+        self.interface.switch_to_initial_mode()
         self.interface.load_file += self.__on_load_file
         self.interface.start_clicked += self.__on_start
         self.interface.stop_clicked += self.__on_stop
@@ -104,8 +121,6 @@ class Controller(object):
     def run(self):
         self.interface.run()
         self.finish_event.set()
-    # machine events handling
-
 
     # interface events handling
     def __on_start(self):

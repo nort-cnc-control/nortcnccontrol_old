@@ -42,14 +42,17 @@ class Interface(object):
         codecolumn = Gtk.TreeViewColumn("Code", Gtk.CellRendererText(), text=1)
         self.gcodeview.append_column(codecolumn)
 
-        start = builder.get_object("start")
-        start.connect("clicked", self.__start_program)
+        self.pause_btn = builder.get_object("pause")
+        self.pause_btn.connect("clicked", self.__pause_program)
 
-        cont = builder.get_object("continue")
-        cont.connect("clicked", self.__continue_program)
+        self.start_btn = builder.get_object("start")
+        self.start_btn.connect("clicked", self.__start_program)
 
-        stop = builder.get_object("stop")
-        stop.connect("clicked", self.__stop_program)
+        self.continue_btn = builder.get_object("continue")
+        self.continue_btn.connect("clicked", self.__continue_program)
+
+        self.stop_btn = builder.get_object("stop")
+        self.stop_btn.connect("clicked", self.__stop_program)
 
 
     def __start_program(self, widget):
@@ -61,6 +64,8 @@ class Interface(object):
     def __stop_program(self, widget):
         self.stop_clicked()
     
+    def __pause_program(self, widget):
+        self.pause_clicked()
 
     def __load_menu_event(self, widget):
         dialog = Gtk.FileChooserDialog("Please choose a g-code", self.window,
@@ -92,6 +97,24 @@ class Interface(object):
         path = Gtk.TreePath(line)
         selection = self.gcodeview.get_selection()
         selection.select_path(path)
+
+    def switch_to_initial_mode(self):
+        self.start_btn.set_sensitive(True)
+        self.continue_btn.set_sensitive(False)
+        self.stop_btn.set_sensitive(False)
+        self.pause_btn.set_sensitive(False)
+
+    def switch_to_paused_mode(self):
+        self.start_btn.set_sensitive(False)
+        self.continue_btn.set_sensitive(True)
+        self.stop_btn.set_sensitive(True)
+        self.pause_btn.set_sensitive(False)
+
+    def switch_to_running_mode(self):
+        self.start_btn.set_sensitive(False)
+        self.continue_btn.set_sensitive(False)
+        self.stop_btn.set_sensitive(True)
+        self.pause_btn.set_sensitive(True)
 
     def run(self):
         Gtk.main()
