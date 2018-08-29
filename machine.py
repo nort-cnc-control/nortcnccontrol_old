@@ -253,7 +253,7 @@ class Machine(object):
                     break
 
     def __init__(self):
-        self.started       = event.EventEmitter()
+        self.running       = event.EventEmitter()
         self.paused        = event.EventEmitter()
         self.finished      = event.EventEmitter()
         self.line_selected = event.EventEmitter()
@@ -456,7 +456,7 @@ class Machine(object):
             self.line_selected(self.actions[0][0])
 
     def work_continue(self):
-        self.started()
+        self.running()
         while self.iter < len(self.actions):
             index = self.actions[self.iter][0]
             frame = self.actions[self.iter][1]

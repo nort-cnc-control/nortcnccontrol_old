@@ -1,4 +1,7 @@
 import event
+import threading
+import queue
+import enum
 
 import gi
 import OpenGL
@@ -54,6 +57,7 @@ class Interface(object):
         self.stop_btn = builder.get_object("stop")
         self.stop_btn.connect("clicked", self.__stop_program)
 
+        self.clear_commands()
 
     def __start_program(self, widget):
         self.start_clicked()
@@ -118,3 +122,86 @@ class Interface(object):
 
     def run(self):
         Gtk.main()
+
+class InterfaceThread(threading.Thread):
+
+    class UIEvent(enum.Enum):
+        Finish = 0
+        Start = 1
+        Stop = 2
+        Pause = 3
+        Continue = 4
+
+    class UIEventDialogConfirmed(object):
+        pass
+
+    class UICommand(object):
+        Finish = 0
+        ModeInitial = 1
+        ModeRun = 2
+        ModePaused = 3
+        Clear = 4
+
+    class UICommandShowDialog(object):
+        def __init__(self, message):
+            self.message = message
+
+    class UICommandActiveLine(object):
+        def __init__(self, line):
+            self.line = line
+
+    class UICommandAddLine(object):
+        def __init__(self, command):
+            self.command = command
+
+    def __init__(self, commands, events):
+        threading.Thread.__init__(self)
+        self.commands = commands
+        self.events = events
+        self.ui = Interface()
+        self.ui.start_clicked += self.__emit_start
+        self.ui.stop_clicked += self.__emit_stop
+        self.ui.pause_clicked += self.__emit_pause
+        self.ui.continue_clicked += self.__emit_continue
+
+    def __emit_start(self):
+        self.events.put(self.UIEvent.Start)
+
+    def __emit_stop(self):
+        self.events.put(self.UIEvent.Stop)
+    
+    def __emit_pause(self):
+        self.events.put(self.UIEvent.Pause)
+    
+    def __emit_continue(self):
+        self.events.put(self.UIEvent.Continue)
+
+    def __check_queue(self):
+        try:
+            item = self.commands.get_nowait()
+        except queue.Empty:
+            return True
+
+        if item == self.UICommand.Finish:
+            Gtk.main_quit()
+        elif item == self.UICommand.ModeInitial:
+            self.ui.switch_to_initial_mode()
+        elif item == self.UICommand.ModePaused:
+            self.ui.switch_to_paused_mode()
+        elif item == self.UICommand.ModeRun:
+            self.ui.switch_to_running_mode()
+        elif item == self.UICommand.Clear:
+            self.ui.clear_commands()
+        elif type(item) == self.UICommandShowDialog:
+            self.ui.show_ok(item.message)
+            self.events.put(self.UIEventDialogConfirmed())
+        elif type(item) == self.UICommandActiveLine:
+            self.ui.select_line(item.line)
+        elif type(item) == self.UICommandAddLine:
+            self.ui.add_command(item.command)
+        return True
+
+    def run(self):
+        GLib.idle_add(self.__check_queue)
+        self.ui.run()
+        self.events.put(self.UIEvent.Finish)

@@ -11,7 +11,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib
 
-from gui import Interface
+from gui import InterfaceThread
 from machine import Machine
 from parser import GLineParser
 from machinethread import MachineThread
@@ -22,68 +22,69 @@ def usage():
 
 class Controller(object):
 
-    class GtkHelperThread(threading.Thread):
-        def __init__(self, queue, finish_event, interface):
+    class UI2Machine(threading.Thread):
+        def __init__(self, controller):
             threading.Thread.__init__(self)
-            self.queue = queue
-            self.finish_event = finish_event
-            self.interface = interface
-
-        def __show(self, message):
-            self.interface.show_ok(message)
-            return False
-
-        def __select_line(self, line):
-            self.interface.select_line(line)
-            return False
-
-        def __running_state(self):
-            self.interface.switch_to_running_mode()
-            return False
-
-        def __initial_state(self):
-            self.interface.switch_to_initial_mode()
-            return False
-
-        def __paused_state(self):
-            self.interface.switch_to_paused_mode()
-            return False
+            self.controller = controller
 
         def run(self):
-            while not self.finish_event.is_set():
+            while not self.controller.finish_event.is_set():
                 try:
-                    item = self.queue.get(timeout=0.1)
+                    uievent = self.controller.uievents.get(timeout=0.5)
+                    if uievent == InterfaceThread.UIEvent.Finish:
+                        self.controller.finish_event.set()
+                    elif uievent == InterfaceThread.UIEvent.Continue:
+                        self.controller.continue_event.set()
+                    elif uievent == InterfaceThread.UIEvent.Start:
+                        self.controller.continue_event.clear()
+                        if self.controller.machine_thread != None:
+                            self.controller.machine_thread.dispose()
+                        self.controller.machine_thread = MachineThread(self.controller.machine,
+                                            self.controller.continue_event,
+                                            self.controller.finish_event,
+                                            self.controller.machine_events)
+                        self.controller.machine_thread.start()
                 except queue.Empty:
-                    continue
-                if type(item) == machinethread.FinishedEvent:
-                    GLib.idle_add(self.__show, "GCode finished")
-                    GLib.idle_add(self.__initial_state)
-                elif type(item) == machinethread.LineEvent:
-                    GLib.idle_add(self.__select_line, item.line)
-                elif type(item) == machinethread.ToolEvent:
-                    GLib.idle_add(self.__show, "Please insert tool #%i" % item.tool)
-                    GLib.idle_add(self.__paused_state)
-                elif type(item) == machinethread.StartedEvent:
-                    GLib.idle_add(self.__running_state)
+                    pass
+    
+    class Machine2UI(threading.Thread):
+        def __init__(self, controller):
+            threading.Thread.__init__(self)
+            self.controller = controller
+        
+        def run(self):
+            while not self.controller.finish_event.is_set():
+                try:
+                    mevent = self.controller.machine_events.get(timeout=0.5)
+                    if type(mevent) == MachineThread.MachineLineEvent:
+                        line = mevent.line
+                        self.controller.uicommands.put(InterfaceThread.UICommandActiveLine(line))
+                    elif type(mevent) == MachineThread.MachineToolEvent:
+                        tool = mevent.tool
+                        message = "Insert tool #%i" % tool
+                        self.controller.uicommands.put(InterfaceThread.UICommand.ModePaused)
+                        self.controller.uicommands.put(InterfaceThread.UICommandShowDialog(message))
+                    elif mevent == MachineThread.MachineEvent.Running:
+                        self.controller.uicommands.put(InterfaceThread.UICommand.ModeRun)
+                    elif mevent == MachineThread.MachineEvent.Finished:
+                        self.controller.uicommands.put(InterfaceThread.UICommand.ModeInitial)
+                        self.controller.uicommands.put(InterfaceThread.UICommandShowDialog("Program finished"))
+                except queue.Empty:
+                    pass
 
     def __init__(self, file = None):
         self.frames = []
-        self.interface = Interface()
-        self.interface.switch_to_initial_mode()
-        self.interface.load_file += self.__on_load_file
-        self.interface.start_clicked += self.__on_start
-        self.interface.stop_clicked += self.__on_stop
-        self.interface.continue_clicked += self.__on_continue
+
+        self.uievents = queue.Queue()
+        self.uicommands = queue.Queue()
+        self.ui = InterfaceThread(self.uicommands, self.uievents)
 
         self.finish_event = threading.Event()
         self.continue_event = threading.Event()
         self.__on_load_file(file)
+        
+        self.machine_events = queue.Queue()
         self.machine_thread = None
-        self.queue = queue.Queue()
-        self.gtkhelper = self.GtkHelperThread(self.queue,
-                                              self.finish_event,
-                                              self.interface)
-        self.gtkhelper.start()
 
     def __readfile(self, infile):
         if infile is None:
@@ -103,7 +104,7 @@ class Controller(object):
         gcode = self.__readfile(name)
         self.frames = []
 
-        self.interface.clear_commands()
+        self.uicommands.put(InterfaceThread.UICommand.Clear)
 
         try:
             for line in gcode:
@@ -111,7 +112,7 @@ class Controller(object):
                 if frame == None:
                     raise Exception("Invalid line")
                 self.frames.append(frame)
-                self.interface.add_command(line)
+                self.uicommands.put(InterfaceThread.UICommandAddLine(line))
 
             self.machine.load(self.frames)
         except Exception as e:
@@ -119,29 +120,18 @@ class Controller(object):
             self.machine.init()
 
     def run(self):
-        self.interface.run()
-        self.finish_event.set()
-
-    # interface events handling
-    def __on_start(self):
-        self.continue_event.clear()
-        if self.machine_thread != None:
-            self.machine_thread.dispose()
-        self.machine_thread = MachineThread(self.machine,
-                                            self.continue_event,
-                                            self.finish_event,
-                                            self.queue)
-        self.machine_thread.start()
-
-    def __on_continue(self):
-        self.continue_event.set()
-
-    def __on_stop(self):
-        pass
+        self.ui.start()
+        self.uicommands.put(InterfaceThread.UICommand.ModeInitial)
+        ui2m = self.UI2Machine(self)
+        m2ui = self.Machine2UI(self)
+        ui2m.start()
+        m2ui.start()
+        self.finish_event.wait()
+        m2ui.join()
+        ui2m.join()
 
     def __on_load_file(self, name):
         """ Load and parse gcode file """
-        self.interface.clear_commands()
         self.machine = Machine()
         self.__load_file(name)
 

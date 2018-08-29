@@ -1,36 +1,28 @@
 import threading
-
-class MachineEvent(object):
-    pass
-
-class LineEvent(MachineEvent):
-
-    def __init__(self, line):
-        MachineEvent.__init__(self)
-        self.line = line
-
-class ToolEvent(MachineEvent):
-
-    def __init__(self, tool):
-        MachineEvent.__init__(self)
-        self.tool = tool
-
-class FinishedEvent(object):
-    pass
-
-class StartedEvent(object):
-    pass
+import enum
 
 class MachineThread(threading.Thread):
 
-    def __init__(self, machine, continue_event, finish_event, queue):
+    class MachineLineEvent(object):
+        def __init__(self, line):
+            self.line = line
+
+    class MachineToolEvent(object):
+        def __init__(self, tool):
+            self.tool = tool
+
+    class MachineEvent(enum.Enum):
+        Finished = 1
+        Running = 2
+
+    def __init__(self, machine, continue_event, finish_event, machine_events):
         threading.Thread.__init__(self)
         self.machine = machine
         self.finished = False
-        self.queue = queue
+        self.machine_events = machine_events
         self.disposed = False
         self.continue_event = continue_event
-        self.machine.started += self.__m_started
+        self.machine.running += self.__m_running
         self.machine.line_selected += self.__line_number
         self.machine.finished += self.__finished
         self.machine.tool_selected += self.__tool_selected
@@ -42,18 +34,18 @@ class MachineThread(threading.Thread):
         self.machine = None
         self.disposed = True
 
-    def __m_started(self):
-        self.queue.put(StartedEvent())
+    def __m_running(self):
+        self.machine_events.put(self.MachineEvent.Running)
 
     def __line_number(self, line):
-        self.queue.put(LineEvent(line))
+        self.machine_events.put(self.MachineLineEvent(line))
 
     def __finished(self):
-        self.queue.put(FinishedEvent())
+        self.machine_events.put(self.MachineEvent.Finished)
         self.finished = True
 
     def __tool_selected(self, tool):
-        self.queue.put(ToolEvent(tool))
+        self.machine_events.put(self.MachineToolEvent(tool))
 
     def run(self):
         end = self.machine.work_init()
