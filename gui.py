@@ -2,6 +2,7 @@ import event
 import threading
 import queue
 import enum
+import time
 
 import gi
 import OpenGL
@@ -124,6 +125,42 @@ class Interface(object):
         Gtk.main()
 
 class InterfaceThread(threading.Thread):
+    
+    class QueueHelperThread(threading.Thread):
+
+        def __init__(self, ift):
+            threading.Thread.__init__(self)
+            self.ift = ift
+
+        def __handle(self, item):
+            if item == self.ift.UICommand.Finish:
+                Gtk.main_quit()
+                self.ift.finish_event.set()
+            elif item == self.ift.UICommand.ModeInitial:
+                self.ift.ui.switch_to_initial_mode()
+            elif item == self.ift.UICommand.ModePaused:
+                self.ift.ui.switch_to_paused_mode()
+            elif item == self.ift.UICommand.ModeRun:
+                self.ift.ui.switch_to_running_mode()
+            elif item == self.ift.UICommand.Clear:
+                self.ift.ui.clear_commands()
+            elif type(item) == self.ift.UICommandShowDialog:
+                self.ift.ui.show_ok(item.message)
+                self.ift.events.put(self.ift.UIEventDialogConfirmed())
+            elif type(item) == self.ift.UICommandActiveLine:
+                self.ift.ui.select_line(item.line)
+            elif type(item) == self.ift.UICommandAddLine:
+                self.ift.ui.add_command(item.command)
+            return False
+
+        def run(self):
+            while not self.ift.finish_event.is_set():
+                try:
+                    item = self.ift.commands.get(timeout=0.2)
+                    GLib.idle_add(self.__handle, item)
+                except queue.Empty:
+                    pass
+            
 
     class UIEvent(enum.Enum):
         Finish = 0
@@ -158,6 +195,7 @@ class InterfaceThread(threading.Thread):
         threading.Thread.__init__(self)
         self.commands = commands
         self.events = events
+        self.finish_event = threading.Event()
         self.ui = Interface()
         self.ui.start_clicked += self.__emit_start
         self.ui.stop_clicked += self.__emit_stop
@@ -176,32 +214,10 @@ class InterfaceThread(threading.Thread):
     def __emit_continue(self):
         self.events.put(self.UIEvent.Continue)
 
-    def __check_queue(self):
-        try:
-            item = self.commands.get_nowait()
-        except queue.Empty:
-            return True
-
-        if item == self.UICommand.Finish:
-            Gtk.main_quit()
-        elif item == self.UICommand.ModeInitial:
-            self.ui.switch_to_initial_mode()
-        elif item == self.UICommand.ModePaused:
-            self.ui.switch_to_paused_mode()
-        elif item == self.UICommand.ModeRun:
-            self.ui.switch_to_running_mode()
-        elif item == self.UICommand.Clear:
-            self.ui.clear_commands()
-        elif type(item) == self.UICommandShowDialog:
-            self.ui.show_ok(item.message)
-            self.events.put(self.UIEventDialogConfirmed())
-        elif type(item) == self.UICommandActiveLine:
-            self.ui.select_line(item.line)
-        elif type(item) == self.UICommandAddLine:
-            self.ui.add_command(item.command)
-        return True
-
     def run(self):
-        GLib.idle_add(self.__check_queue)
+        helper = self.QueueHelperThread(self)
+        helper.start()
         self.ui.run()
         self.events.put(self.UIEvent.Finish)
+        self.finish_event.set()
+        helper.join()
