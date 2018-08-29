@@ -2,8 +2,9 @@ import abc
 import event
 
 class Action(object):
-    def __init__(self):
+    def __init__(self, sender):
         self.acted = event.EventEmitter()
+        self.sender = sender
 
     def run(self):
         res = self.act()
@@ -36,8 +37,8 @@ class Movement(Action):
     def dir1(self):
         return None
 
-    def __init__(self, feed, acc):
-        Action.__init__(self)
+    def __init__(self, feed, acc, *args, **kwargs):
+        Action.__init__(self, *args, **kwargs)
         self.feed = feed
         self.feed0 = 0
         self.feed1 = 0

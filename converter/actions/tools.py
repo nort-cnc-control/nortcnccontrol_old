@@ -4,8 +4,8 @@ from . import action
 
 class WaitTool(action.Action):
 
-    def __init__(self, tool):
-        action.Action.__init__(self)
+    def __init__(self, tool, *args, **kwargs):
+        action.Action.__init__(self, *args, **kwargs)
         self.tool_changed = event.EventEmitter()
         self.tool = tool
 
@@ -15,8 +15,8 @@ class WaitTool(action.Action):
 
 class SetSpeed(action.Action):
 
-    def __init__(self, speed):
-        action.Action.__init__(self)
+    def __init__(self, speed, *args, **kwargs):
+        action.Action.__init__(self, *args, **kwargs)
         self.speed = speed
 
     def act(self):

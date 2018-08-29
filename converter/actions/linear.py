@@ -13,8 +13,8 @@ class LinearMovement(action.Movement):
         time.sleep(1)
         return True
 
-    def __init__(self, delta, feed, acc, exact_stop):
-        action.Movement.__init__(self, feed=feed, acc=acc)
+    def __init__(self, delta, feed, acc, exact_stop, *args, **kwargs):
+        action.Movement.__init__(self, feed=feed, acc=acc, *args, **kwargs)
         self.delta = delta
         self.gcode = None
         self.exact_stop = exact_stop

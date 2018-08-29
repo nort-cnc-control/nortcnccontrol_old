@@ -6,12 +6,12 @@ import math
 
 from enum import Enum
 
-from . import homing
-from . import linear
-from . import action
-from . import pause
-from . import tools
-from . import program
+from actions import homing
+from actions import linear
+from actions import action
+from actions import pause
+from actions import tools
+from actions import program
 
 import event
 import threading
@@ -252,7 +252,8 @@ class Machine(object):
                     self.exact_stop = True
                     break
 
-    def __init__(self):
+    def __init__(self, sender):
+        self.sender        = sender
         self.running       = event.EventEmitter()
         self.paused        = event.EventEmitter()
         self.finished      = event.EventEmitter()
@@ -261,7 +262,7 @@ class Machine(object):
         self.init()
 
     def __program_end(self):
-        act = program.Finish()
+        act = program.Finish(self.sender)
         act.acted += self.__finish
         self.actions.append((self.index, act))
 
@@ -306,18 +307,18 @@ class Machine(object):
         else:
             raise Exception("Not implemented %s motion state" % self.state.motion)
 
-        self.actions.append((self.index, linear.LinearMovement(delta, feed, self.state.acc, exact_stop)))
+        self.actions.append((self.index, linear.LinearMovement(delta, feed, self.state.acc, exact_stop, self.sender)))
         self.state.pos = newpos
 
     def __insert_homing(self, frame):
-        self.actions.append((self.index, homing.ToBeginMovement()))
+        self.actions.append((self.index, homing.ToBeginMovement(self.sender)))
 
     def __insert_pause(self):
-        self.actions.append((self.index, pause.WaitResume()))
+        self.actions.append((self.index, pause.WaitResume(self.sender)))
 
     def __insert_select_tool(self, tool):
         self.toolstate.tool = tool
-        tl = tools.WaitTool(tool)
+        tl = tools.WaitTool(tool, self.sender)
         tl.tool_changed += self.__tool_selected
         self.actions.append((self.index, tl))
 
