@@ -1,8 +1,6 @@
 from . import action
 
-class ToBeginMovement(action.Action):
+class ToBeginMovement(action.MCUAction):
 
-    def make_code(self):
-        res = "G28"
-        print(res)
-        return True
+    def command(self):
+        return "G28"

@@ -263,12 +263,16 @@ class Machine(object):
         self.tool_selected = event.EventEmitter()
         self.init()
 
-    def __program_end(self):
-        act = program.Finish(self.sender)
-        act.acted += self.__finish
-        self.actions.append((self.index, act))
+    def __add_action(self, index, action):
+        action.completed += self.__action_completed
+        self.actions.append((index, action))
 
-    def __finish(self):
+    def __program_end(self):
+        act = program.Finish()
+        act.completed += self.__finish
+        self.__add_action(self.index, act)
+
+    def __finish(self, action):
         self.finished()
 
     def __set_feed(self, feed):
@@ -309,36 +313,36 @@ class Machine(object):
         else:
             raise Exception("Not implemented %s motion state" % self.state.motion)
 
-        self.actions.append((self.index, linear.LinearMovement(delta,
+        self.__add_action(self.index, linear.LinearMovement(delta,
                                             feed=feed,
                                             acc=self.state.acc,
                                             exact_stop=exact_stop,
-                                            sender=self.sender)))
+                                            sender=self.sender))
         self.state.pos = newpos
 
     def __insert_homing(self, frame):
-        self.actions.append((self.index, homing.ToBeginMovement(sender=self.sender)))
+        self.__add_action(self.index, homing.ToBeginMovement(sender=self.sender))
 
     def __insert_pause(self):
-        p = pause.WaitResume(sender=self.sender)
+        p = pause.WaitResume()
         p.paused += self.__paused
-        self.actions.append((self.index, p))
+        self.__add_action(self.index, p)
 
     def __paused(self):
         self.display_paused = True
 
     def __insert_select_tool(self, tool):
         self.toolstate.tool = tool
-        tl = tools.WaitTool(tool, sender=self.sender)
+        tl = tools.WaitTool(tool)
         tl.tool_changed += self.__tool_selected
-        self.actions.append((self.index, tl))
+        self.__add_action(self.index, tl)
 
     def __tool_selected(self, tool):
         self.tool_selected(tool)
 
     def __insert_set_speed(self, speed):
         self.toolstate.speed = speed
-        self.actions.append((self.index, tools.SetSpeed(speed, sender=self.sender)))
+        self.__add_action(self.index, tools.SetSpeed(speed, sender=self.sender))
 
     def __process_begin(self, frame):
         self.toolstate.process_begin(frame)
@@ -448,6 +452,9 @@ class Machine(object):
             prevmove = move           
             prevdir = move.dir1()
 
+    def __action_completed(self, action):
+        pass
+
     def init(self):
         self.index = 0
         self.line_number = None
@@ -459,8 +466,6 @@ class Machine(object):
     def work_init(self):
         self.iter = 0
         self.display_paused = False
-        for (_, act) in self.actions:
-            act.completed = False
 
     def load(self, frames):
         self.init()
@@ -472,12 +477,19 @@ class Machine(object):
 
     def work_continue(self):
         self.running()
+        prevframe = None
         while self.iter < len(self.actions):
             index = self.actions[self.iter][0]
             frame = self.actions[self.iter][1]
+            if not frame.caching and prevframe != None:
+                # we should wait until previous action is completed
+                # prevframe.completed.wait()
+                pass
+
             self.line_selected(index)
             cont = frame.run()
             self.iter += 1
+
             if not cont:
                 self.paused(self.display_paused)
                 self.display_paused = False

@@ -2,13 +2,12 @@ import event
 
 from . import action
 
-class WaitResume(action.Action):
+class WaitResume(action.InstantAction):
 
     def __init__(self, **kwargs):
-        action.Action.__init__(self, **kwargs)
+        action.InstantAction.__init__(self, **kwargs)
         self.paused = event.EventEmitter()
 
-    def act(self):
+    def perform(self):
         self.paused()
-        self.completed = True
         return False

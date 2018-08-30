@@ -2,24 +2,22 @@ import event
 
 from . import action
 
-class WaitTool(action.Action):
+class WaitTool(action.InstantAction):
 
     def __init__(self, tool, **kwargs):
-        action.Action.__init__(self, **kwargs)
+        action.InstantAction.__init__(self, **kwargs)
         self.tool_changed = event.EventEmitter()
         self.tool = tool
 
-    def act(self):
+    def perform(self):
         self.tool_changed(self.tool)
-        self.completed = True
         return False
 
-class SetSpeed(action.Action):
+class SetSpeed(action.MCUAction):
 
     def __init__(self, speed, **kwargs):
-        action.Action.__init__(self, **kwargs)
+        action.MCUAction.__init__(self, **kwargs)
         self.speed = speed
 
-    def act(self):
-        #print("set spindle speed %i" % self.speed)
-        return True
+    def emit_command(self):
+        return "S%i" % self.speed

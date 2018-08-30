@@ -2,33 +2,50 @@ import abc
 import event
 
 class Action(object):
-    def __init__(self, sender, **kwargs):
-        self.acted = event.EventEmitter()
-        self.sender = sender
-        self.completed = False
+    def __init__(self, **kwargs):
+        self.completed = event.EventEmitter()
+        self.caching = False
 
     def run(self):
-        res = self.act()
-        self.acted()
+        return self.act()
+
+    @abc.abstractmethod
+    def act(self):
+        return False
+
+    def is_moving(self):
+        return False
+
+class InstantAction(Action):
+
+    @abc.abstractmethod
+    def perform(self):
+        return False
+
+    def act(self):
+        res = self.perform()
+        self.completed(self)
         return res
 
+class MCUAction(Action):
+
+    def __init__(self, sender, **kwargs):
+        Action.__init__(self, **kwargs)
+        self.caching = True
+        self.sender = sender
+
     @abc.abstractmethod
+    def command(self):
+        return ""
+
     def act(self):
-        return False
-
-    def is_moving(self):
-        return False
-
-class Movement(Action):
-    def is_moving(self):
+        cmd = self.command()
+        self.sender.send_command(cmd)
         return True
 
-    def act(self):
-        return self.emit_code()
-
-    @abc.abstractmethod
-    def emit_code(self):
-        return False
+class Movement(MCUAction):
+    def is_moving(self):
+        return True
 
     @abc.abstractmethod
     def dir0(self):
@@ -39,7 +56,7 @@ class Movement(Action):
         return None
 
     def __init__(self, feed, acc, **kwargs):
-        Action.__init__(self, **kwargs)
+        MCUAction.__init__(self, **kwargs)
         self.feed = feed
         self.feed0 = 0
         self.feed1 = 0

@@ -1,6 +1,6 @@
 from . import action
 
-class Finish(action.Action):
+class Finish(action.InstantAction):
 
-    def act(self):
+    def perform(self):
         return False
