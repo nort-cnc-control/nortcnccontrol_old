@@ -33,18 +33,20 @@ class MCUAction(Action):
         Action.__init__(self, **kwargs)
         self.caching = True
         self.sender = sender
+        self.Nid = None
+        self.sender.completed += self.__received_completed
 
     @abc.abstractmethod
     def command(self):
         return ""
 
-    def received_completed(self):
-        """ Received completed event from MCU """
-        self.completed()
+    def __received_completed(self, nid):
+        if nid == self.Nid:
+            self.completed()
 
     def act(self):
         cmd = self.command()
-        self.sender.send_command(cmd)
+        self.Nid = self.sender.send_command(cmd)
         return True
 
 class Movement(MCUAction):
