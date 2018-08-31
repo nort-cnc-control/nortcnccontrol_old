@@ -89,9 +89,8 @@ class Controller(object):
                         self.controller.uicommands.put(InterfaceThread.UICommand.ModeRun)
 
                     elif mevent == MachineThread.MachineEvent.Finished:
-                        self.controller.uicommands.put(InterfaceThread.UICommand.ModeInitial)
                         self.controller.uicommands.put(InterfaceThread.UICommandShowDialog("Program finished"))
-
+                        self.controller.uicommands.put(InterfaceThread.UICommand.ModeInitial)
                     
                 except queue.Empty:
                     pass

@@ -9,6 +9,7 @@ class LinearMovement(action.Movement):
         g1 = "G1F%iP%iL%iT%i " % (self.feed, self.feed0+0.5, self.feed1+0.5, self.acceleration)
         g2 = "X%.2f Y%.2f Z%.2f" % (self.delta.x, self.delta.y, self.delta.z)
         code = g1 + g2
+        time.sleep(1)
         return code
 
     def __init__(self, delta, feed, acc, exact_stop, **kwargs):

@@ -38,6 +38,10 @@ class MCUAction(Action):
     def command(self):
         return ""
 
+    def received_completed(self):
+        """ Received completed event from MCU """
+        self.completed()
+
     def act(self):
         cmd = self.command()
         self.sender.send_command(cmd)

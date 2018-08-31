@@ -273,7 +273,7 @@ class Machine(object):
         self.__add_action(self.index, act)
 
     def __finish(self, action):
-        self.finished()
+        self.stop = True
 
     def __set_feed(self, feed):
         if self.state.feed_mode != self.PositioningState.FeedRateGroup.feed:
@@ -456,6 +456,7 @@ class Machine(object):
         pass
 
     def init(self):
+        self.stop = False
         self.index = 0
         self.line_number = None
         self.actions = []
@@ -465,6 +466,7 @@ class Machine(object):
 
     def work_init(self):
         self.iter = 0
+        self.stop = False
         self.display_paused = False
 
     def load(self, frames):
@@ -490,7 +492,7 @@ class Machine(object):
             cont = frame.run()
             self.iter += 1
 
-            if not cont:
+            if not cont and not self.stop:
                 self.paused(self.display_paused)
                 self.display_paused = False
                 return False
