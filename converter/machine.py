@@ -264,12 +264,11 @@ class Machine(object):
         self.init()
 
     def __add_action(self, index, action):
-        action.completed += self.__action_completed
         self.actions.append((index, action))
 
     def __program_end(self):
         act = program.Finish()
-        act.completed += self.__finish
+        act.finished += self.__finish
         self.__add_action(self.index, act)
 
     def __finish(self, action):
@@ -479,14 +478,15 @@ class Machine(object):
 
     def work_continue(self):
         self.running()
-        prevframe = None
+        frame = None
         while self.iter < len(self.actions):
+            prevframe = frame
             index = self.actions[self.iter][0]
             frame = self.actions[self.iter][1]
             if not frame.caching and prevframe != None:
                 # we should wait until previous action is completed
                 # prevframe.completed.wait()
-                pass
+                prevframe.completed.wait()
 
             self.line_selected(index)
             cont = frame.run()
@@ -502,3 +502,9 @@ class Machine(object):
     def work_start(self):
         self.work_init()
         return self.work_continue()
+
+    def dispose(self):
+        for (_, act) in self.actions:
+            act.dispose()
+        
+        self.actions = []

@@ -1,13 +1,17 @@
 import abc
 import event
+import threading
 
 class Action(object):
     def __init__(self, **kwargs):
-        self.completed = event.EventEmitter()
+        self.completed = threading.Event()
         self.caching = False
 
     def run(self):
         return self.act()
+
+    def dispose(self):
+        pass
 
     @abc.abstractmethod
     def act(self):
@@ -24,7 +28,7 @@ class InstantAction(Action):
 
     def act(self):
         res = self.perform()
-        self.completed(self)
+        self.completed.set()
         return res
 
 class MCUAction(Action):
@@ -40,12 +44,17 @@ class MCUAction(Action):
     def command(self):
         return ""
 
+    def dispose(self):
+        self.sender.completed -= self.__received_completed
+
     def __received_completed(self, nid):
         if nid == self.Nid:
-            self.completed()
+            self.completed.set()
+            self.sender.completed -= self.__received_completed
 
     def act(self):
         cmd = self.command()
+        self.completed.clear()
         self.Nid = self.sender.send_command(cmd)
         return True
 

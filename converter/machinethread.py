@@ -39,6 +39,7 @@ class MachineThread(threading.Thread):
         self.machine.finished -= self.__finished
         self.machine.tool_selected -= self.__tool_selected
         self.machine.paused -= self.__m_paused
+        self.machine.dispose()
         self.machine = None
         self.disposed = True
 
