@@ -98,6 +98,8 @@ class Controller(object):
     def __init__(self, file = None):
         self.frames = []
 
+        self.sender = sender.SerialSender("/dev/pts/7", 57600)
+
         self.uievents = queue.Queue()
         self.uicommands = queue.Queue()
         self.ui = InterfaceThread(self.uicommands, self.uievents)
@@ -152,10 +154,10 @@ class Controller(object):
         self.finish_event.wait()
         m2ui.join()
         ui2m.join()
+        self.sender.close()
 
     def load_file(self, name):
         """ Load and parse gcode file """
-        self.sender = sender.SerialSender("/dev/pts/7", 57600)
         self.machine = Machine(self.sender)
         self.__load_file(name)
 
