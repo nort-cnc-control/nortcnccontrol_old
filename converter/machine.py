@@ -498,6 +498,7 @@ class Machine(object):
                 # prevframe.completed.wait()
                 prevframe.completed.wait()
 
+            self.sender.has_slots.wait()
             cont = action.run()
             self.iter += 1
 
