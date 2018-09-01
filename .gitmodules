@@ -1,0 +1,3 @@
+[submodule "cnc_ramps"]
+	path = cnc_ramps
+	url = https://github.com/vladtcvs/cnc_ramps
