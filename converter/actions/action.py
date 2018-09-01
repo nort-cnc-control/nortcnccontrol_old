@@ -5,6 +5,8 @@ import threading
 class Action(object):
     def __init__(self, **kwargs):
         self.completed = threading.Event()
+        self.action_completed = event.EventEmitter()
+        self.action_started = event.EventEmitter()
         self.caching = False
 
     def run(self):
@@ -27,8 +29,10 @@ class InstantAction(Action):
         return False
 
     def act(self):
+        self.action_started(self)
         res = self.perform()
         self.completed.set()
+        self.action_completed(self)
         return res
 
 class MCUAction(Action):
@@ -39,6 +43,7 @@ class MCUAction(Action):
         self.sender = sender
         self.Nid = None
         self.sender.completed += self.__received_completed
+        self.sender.started += self.__received_started
 
     @abc.abstractmethod
     def command(self):
@@ -47,9 +52,15 @@ class MCUAction(Action):
     def dispose(self):
         self.sender.completed -= self.__received_completed
 
+    def __received_started(self, nid):
+        if nid == self.Nid:
+            self.action_started(self)
+            self.sender.completed -= self.__received_started
+
     def __received_completed(self, nid):
         if nid == self.Nid:
             self.completed.set()
+            self.action_completed(self)
             self.sender.completed -= self.__received_completed
 
     def act(self):

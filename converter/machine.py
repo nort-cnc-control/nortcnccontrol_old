@@ -264,6 +264,7 @@ class Machine(object):
         self.init()
 
     def __add_action(self, index, action):
+        action.action_started += self.__action_started
         self.actions.append((index, action))
 
     def __program_end(self):
@@ -451,8 +452,13 @@ class Machine(object):
             prevmove = move           
             prevdir = move.dir1()
 
-    def __action_completed(self, action):
-        pass
+    def __action_started(self, action):
+        for i in range(len(self.actions)):
+            if self.actions[i][1] == action:
+                break
+        if i >= len(self.actions):
+            return
+        self.line_selected(self.actions[i][0])
 
     def init(self):
         self.stop = False
@@ -467,35 +473,40 @@ class Machine(object):
         self.iter = 0
         self.stop = False
         self.display_paused = False
+        for (_, action) in self.actions:
+            action.completed.clear()
+        if len(self.actions) > 0:
+            self.line_selected(self.actions[0][0])
 
     def load(self, frames):
         self.init()
         for frame in frames:
             self.__process(frame)
         self.__optimize()
-        if len(self.actions) > 0:
-            self.line_selected(self.actions[0][0])
 
     def work_continue(self):
         self.running()
-        frame = None
+        if len(self.actions) == 0:
+            self.finished()
+            return True
+        action = None
         while self.iter < len(self.actions):
-            prevframe = frame
-            index = self.actions[self.iter][0]
-            frame = self.actions[self.iter][1]
-            if not frame.caching and prevframe != None:
+            prevframe = action
+            action = self.actions[self.iter][1]
+            if not action.caching and prevframe != None:
                 # we should wait until previous action is completed
                 # prevframe.completed.wait()
                 prevframe.completed.wait()
 
-            self.line_selected(index)
-            cont = frame.run()
+            cont = action.run()
             self.iter += 1
 
             if not cont and not self.stop:
                 self.paused(self.display_paused)
                 self.display_paused = False
                 return False
+        print("Wait for finishing last action")
+        self.actions[len(self.actions) - 1][1].completed.wait()
         self.finished()
         return True
 
@@ -506,5 +517,4 @@ class Machine(object):
     def dispose(self):
         for (_, act) in self.actions:
             act.dispose()
-        
         self.actions = []
