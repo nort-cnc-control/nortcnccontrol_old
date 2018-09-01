@@ -95,10 +95,10 @@ class Controller(object):
                 except queue.Empty:
                     pass
 
-    def __init__(self, file = None):
+    def __init__(self, port, brate, file=None):
         self.frames = []
 
-        self.sender = sender.SerialSender("/dev/pts/7", 57600)
+        self.sender = sender.SerialSender(port, brate)
 
         self.uievents = queue.Queue()
         self.uicommands = queue.Queue()
@@ -164,9 +164,11 @@ class Controller(object):
 def main():
     
     infile = None
+    port = None
+    brate = 57600
     
     try:
-        optlist, _ = getopt.getopt(sys.argv[1:], "i:o:h")
+        optlist, _ = getopt.getopt(sys.argv[1:], "i:p:b:h")
     except getopt.GetoptError as err:
         print(err)
         sys.exit(1)
@@ -174,11 +176,19 @@ def main():
     for o, a in optlist:
         if o == "-i":
             infile = a
+        if o == "-p":
+            port = a
+        if o == "-b":
+            brate = int(a)
         elif o == "-h":
             usage()
             sys.exit(0)
 
-    ctl = Controller(infile)
+    if port is None:
+        print("Please, specify port -p")
+        sys.exit(1)
+
+    ctl = Controller(port, brate, infile)
     ctl.run()
     sys.exit(0)
 
