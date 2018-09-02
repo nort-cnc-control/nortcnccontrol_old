@@ -15,7 +15,6 @@ class SerialSender(object):
             threading.Thread.__init__(self)
             self.ser = ser
             self.finish_event = finish_event
-            self.reok = re.compile(r"ok N:([0-9]+) Q:([0-9]+).*")
             self.recompleted = re.compile(r"completed N:([0-9]+) Q:([0-9]+).*")
             self.restarted = re.compile(r"started N:([0-9]+) Q:([0-9]+).*")
             self.requeued = re.compile(r"queued N:([0-9]+) Q:([0-9]+).*")
@@ -26,14 +25,8 @@ class SerialSender(object):
 
         def run(self):
             while not self.finish_event.is_set():
-                ans = self.ser.readline()
+                ans = self.ser.readline().decode("utf8")
 
-                match = self.reok.match(ans)
-                if match != None:
-                    Q = int(match.group(2))
-                    self.ev_slots(Q)
-                    continue
-                
                 match = self.restarted.match(ans)
                 if match != None:
                     Nid = match.group(1)
