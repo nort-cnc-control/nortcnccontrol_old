@@ -90,7 +90,7 @@ class Machine(object):
         def __init__(self):
             self.feed = 5
             self.fastfeed = 1200
-            self.acc = 1000
+            self.acc = 50
             self.jerk = 20
             self.pos = euclid3.Vector3()
 

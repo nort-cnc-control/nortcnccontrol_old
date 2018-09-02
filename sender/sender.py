@@ -26,9 +26,10 @@ class SerialSender(object):
         def run(self):
             while not self.finish_event.is_set():
                 ans = self.ser.readline().decode("utf8")
-
+                print("Received answer: %s" % ans)
                 match = self.restarted.match(ans)
                 if match != None:
+                    print("Start received")
                     Nid = match.group(1)
                     self.ev_started(Nid)
                     Q = int(match.group(2))
@@ -37,6 +38,7 @@ class SerialSender(object):
 
                 match = self.recompleted.match(ans)
                 if match != None:
+                    print("Completed received")
                     Nid = match.group(1)
                     self.ev_completed(Nid)
                     Q = int(match.group(2))
@@ -86,6 +88,7 @@ class SerialSender(object):
     def send_command(self, command):
         self.__qans.clear()
         cmd = ("N%i" % self.id) + command + "\n"
+        print("Sending command %s" % cmd)
         self.ser.write(bytes(cmd, "UTF-8"))
         self.ser.flush()
         oid = self.id

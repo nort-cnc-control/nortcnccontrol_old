@@ -8,5 +8,5 @@ class Finish(action.InstantAction):
         self.finished = event.EventEmitter()
 
     def perform(self):
-        self.finished()
+        self.finished(self)
         return False

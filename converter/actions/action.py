@@ -53,12 +53,12 @@ class MCUAction(Action):
         self.sender.completed -= self.__received_completed
 
     def __received_started(self, nid):
-        if nid == self.Nid:
+        if int(nid) == self.Nid:
             self.action_started(self)
             self.sender.completed -= self.__received_started
 
     def __received_completed(self, nid):
-        if nid == self.Nid:
+        if int(nid) == self.Nid:
             self.completed.set()
             self.action_completed(self)
             self.sender.completed -= self.__received_completed

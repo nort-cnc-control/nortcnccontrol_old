@@ -14,5 +14,6 @@ class EventEmitter(object):
         return self
     
     def __isub__(self, handler):
-        self.handlers.remove(handler)
+        if handler in self.handlers:
+            self.handlers.remove(handler)
         return self
