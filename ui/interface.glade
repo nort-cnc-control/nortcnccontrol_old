@@ -599,7 +599,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkButton" id="home_all">
+                  <object class="GtkButton" id="home">
                     <property name="label" translatable="yes">Home</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>

@@ -45,6 +45,7 @@ class Controller(object):
                         self.controller.continue_event.clear()
                         if self.controller.machine_thread != None:
                             self.controller.machine_thread.dispose()
+                        self.controller.load_file(self.controller.file)
                         self.controller.machine_thread = MachineThread(self.controller.machine,
                                             self.controller.continue_event,
                                             self.controller.finish_event,
@@ -57,6 +58,8 @@ class Controller(object):
                         #    self.controller.continue_event.set()
                     elif type(uievent) == InterfaceThread.UIEventLoadFile:
                         self.controller.load_file(uievent.filename)
+                    elif type(uievent) == InterfaceThread.UIEventHome:
+                        self.controller.home(uievent.x, uievent.y, uievent.z)
                 except queue.Empty:
                     pass
     
@@ -159,7 +162,16 @@ class Controller(object):
     def load_file(self, name):
         """ Load and parse gcode file """
         self.machine = Machine(self.sender)
-        self.__load_file(name)
+        self.file = name
+        self.__load_file(self.file)
+
+    def home(self, x, y, z):
+        if not self.machine.stop:
+            raise Exception("Homing allowed only when machine is stopped")
+        parser = GLineParser()
+        frames = [parser.parse("G28")]
+        self.machine.load(frames)
+        self.uievents.put(InterfaceThread.UIEvent.Start)
 
 def main():
     

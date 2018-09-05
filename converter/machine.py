@@ -113,6 +113,12 @@ class Machine(object):
                     self.motion = self.MotionGroup.fast_move
                 elif cmd.value == 1:
                     self.motion = self.MotionGroup.line
+                elif cmd.value == 17:
+                    self.plane = self.PlaneGroup.xy
+                elif cmd.value == 18:
+                    self.plane = self.PlaneGroup.yz
+                elif cmd.value == 19:
+                    self.plane = self.PlaneGroup.zx
                 elif cmd.value == 90:
                     self.positioning = self.PositioningGroup.absolute
                 elif cmd.value == 91:
@@ -255,6 +261,7 @@ class Machine(object):
                     break
 
     def __init__(self, sender):
+        self.stop          = True
         self.sender        = sender
         self.running       = event.EventEmitter()
         self.paused        = event.EventEmitter()
@@ -308,16 +315,25 @@ class Machine(object):
 
         if self.state.motion == self.PositioningState.MotionGroup.line:
             feed = self.state.feed
-        elif self.state.motion == self.PositioningState.MotionGroup.fast_move:
-            feed = self.state.fastfeed
-        else:
-            raise Exception("Not implemented %s motion state" % self.state.motion)
-
-        self.__add_action(self.index, linear.LinearMovement(delta,
+            self.__add_action(self.index, linear.LinearMovement(delta,
                                             feed=feed,
                                             acc=self.state.acc,
                                             exact_stop=exact_stop,
                                             sender=self.sender))
+        elif self.state.motion == self.PositioningState.MotionGroup.fast_move:
+            feed = self.state.fastfeed
+            self.__add_action(self.index, linear.LinearMovement(delta,
+                                            feed=feed,
+                                            acc=self.state.acc,
+                                            exact_stop=exact_stop,
+                                            sender=self.sender))
+        elif self.state.motion == self.PositioningState.MotionGroup.round_cw:
+            feed = self.state.feed
+        elif self.state.motion == self.PositioningState.MotionGroup.round_ccw:
+            feed = self.state.feed
+        else:
+            raise Exception("Not implemented %s motion state" % self.state.motion)
+
         self.state.pos = newpos
 
     def __insert_homing(self, frame):

@@ -31,6 +31,7 @@ class Interface(object):
         self.continue_clicked = event.EventEmitter()
         self.pause_clicked    = event.EventEmitter()
         self.stop_clicked     = event.EventEmitter()
+        self.home_clicked     = event.EventEmitter()
 
         builder = Gtk.Builder()
         path = os.path.dirname(__file__)
@@ -67,6 +68,9 @@ class Interface(object):
         self.stop_btn = builder.get_object("stop")
         self.stop_btn.connect("clicked", self.__stop_program)
 
+        self.home_btn = builder.get_object("home")
+        self.home_btn.connect("clicked", self.__home_all)
+
         self.clear_commands()
 
     def __start_program(self, widget):
@@ -80,6 +84,9 @@ class Interface(object):
     
     def __pause_program(self, widget):
         self.pause_clicked()
+
+    def __home_all(self, widget):
+        self.home_clicked()
 
     def __load_menu_event(self, widget):
         dialog = Gtk.FileChooserDialog("Please choose a g-code", self.window,
@@ -117,18 +124,21 @@ class Interface(object):
         self.continue_btn.set_sensitive(False)
         self.stop_btn.set_sensitive(False)
         self.pause_btn.set_sensitive(False)
+        self.home_btn.set_sensitive(True)
 
     def switch_to_paused_mode(self):
         self.start_btn.set_sensitive(False)
         self.continue_btn.set_sensitive(True)
         self.stop_btn.set_sensitive(True)
         self.pause_btn.set_sensitive(False)
+        self.home_btn.set_sensitive(False)
 
     def switch_to_running_mode(self):
         self.start_btn.set_sensitive(False)
         self.continue_btn.set_sensitive(False)
         self.stop_btn.set_sensitive(True)
         self.pause_btn.set_sensitive(True)
+        self.home_btn.set_sensitive(False)
 
     def run(self):
         Gtk.main()

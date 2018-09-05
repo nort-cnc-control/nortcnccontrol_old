@@ -65,6 +65,12 @@ class InterfaceThread(threading.Thread):
         def __init__(self, reason=None):
             self.reason = reason
 
+    class UIEventHome(object):
+        def __init__(self, x=False, y=False, z=False):
+            self.x = x
+            self.y = y
+            self.z = z
+
     class UIEventLoadFile(object):
         def __init__(self, name):
             self.filename = name
@@ -100,6 +106,7 @@ class InterfaceThread(threading.Thread):
         self.ui.pause_clicked += self.__emit_pause
         self.ui.continue_clicked += self.__emit_continue
         self.ui.load_file += self.__emit_load_file
+        self.ui.home_clicked += self.__emit_home
 
     def __emit_start(self):
         self.events.put(self.UIEvent.Start)
@@ -115,6 +122,9 @@ class InterfaceThread(threading.Thread):
 
     def __emit_load_file(self, name):
         self.events.put(self.UIEventLoadFile(name))
+
+    def __emit_home(self):
+        self.events.put(self.UIEventHome(x=True, y=True, z=True))
 
     def run(self):
         helper = self.QueueHelperThread(self)
