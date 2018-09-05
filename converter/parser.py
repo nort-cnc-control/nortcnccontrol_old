@@ -16,8 +16,8 @@ class GCmd(object):
 
 class GFrame(object):
 
-    def __init__(self):
-        self.commands = []
+    def __init__(self, commands=[]):
+        self.commands = commands
         self.comments = []
     
     def add_cmd(self, cmd):
@@ -76,7 +76,7 @@ class GLineParser(object):
         return s, gc
 
     def __parse_frame(self, s):
-        frame = GFrame()
+        frame = GFrame([])
         while s != None and len(s) > 0:
             if s[0] == "\n":
                 break
@@ -100,3 +100,4 @@ class GLineParser(object):
         elif line[0] == "%":
             return GFrame()
         return self.__parse_frame(line)
+

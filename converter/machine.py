@@ -7,6 +7,7 @@ import math
 from enum import Enum
 
 from . import actions
+from . import parser
 
 from .actions import homing
 from .actions import linear
@@ -477,7 +478,6 @@ class Machine(object):
         self.line_selected(self.actions[i][0])
 
     def init(self):
-        self.stop = False
         self.index = 0
         self.line_number = None
         self.actions = []
@@ -486,8 +486,8 @@ class Machine(object):
         self.work_init()
 
     def work_init(self):
+        self.stop = True
         self.iter = 0
-        self.stop = False
         self.display_paused = False
         for (_, action) in self.actions:
             action.completed.clear()
@@ -500,7 +500,15 @@ class Machine(object):
             self.__process(frame)
         self.__optimize()
 
+    def homing(self, x, y, z):
+        if not self.stop:
+            raise Exception("Machine should be stopped")
+        self.init()
+        cmd = parser.GCmd("G28")
+        self.__process(parser.GFrame([cmd]))
+ 
     def work_continue(self):
+        self.stop = False
         self.running()
         if len(self.actions) == 0:
             self.finished()

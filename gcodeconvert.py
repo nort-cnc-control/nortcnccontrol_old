@@ -59,7 +59,15 @@ class Controller(object):
                     elif type(uievent) == InterfaceThread.UIEventLoadFile:
                         self.controller.load_file(uievent.filename)
                     elif type(uievent) == InterfaceThread.UIEventHome:
+                        self.controller.continue_event.clear()
+                        if self.controller.machine_thread != None:
+                            self.controller.machine_thread.dispose() 
+                        self.controller.machine_thread = MachineThread(self.controller.machine,
+                                            self.controller.continue_event,
+                                            self.controller.finish_event,
+                                            self.controller.machine_events)
                         self.controller.home(uievent.x, uievent.y, uievent.z)
+                        self.controller.machine_thread.start()
                 except queue.Empty:
                     pass
     
@@ -136,6 +144,7 @@ class Controller(object):
 
         try:
             for line in gcode:
+                print("line %s" % line)
                 frame = parser.parse(line)
                 if frame == None:
                     raise Exception("Invalid line")
@@ -166,12 +175,7 @@ class Controller(object):
         self.__load_file(self.file)
 
     def home(self, x, y, z):
-        if not self.machine.stop:
-            raise Exception("Homing allowed only when machine is stopped")
-        parser = GLineParser()
-        frames = [parser.parse("G28")]
-        self.machine.load(frames)
-        self.uievents.put(InterfaceThread.UIEvent.Start)
+        self.machine.homing(x, y, z)
 
 def main():
     
