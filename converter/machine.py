@@ -184,6 +184,9 @@ class Machine(object):
         X = None
         Y = None
         Z = None
+        R = None
+        I = None
+        J = None
 
         def __init__(self, frame):
             for cmd in frame.commands:
@@ -202,6 +205,18 @@ class Machine(object):
                         raise Exception("Z meets 2 times")
                     self.Z = cmd.value
                     self.is_moving = True
+                elif cmd.type == "R":
+                    if self.R != None:
+                        raise Exception("R meets 2 times")
+                    self.R = cmd.value
+                elif cmd.type == "I":
+                    if self.I != None:
+                        raise Exception("I meets 2 times")
+                    self.I = cmd.value
+                elif cmd.type == "J":
+                    if self.J != None:
+                        raise Exception("J meets 2 times")
+                    self.J = cmd.value
 
     class Feed(object):
 
@@ -271,6 +286,23 @@ class Machine(object):
         self.tool_selected = event.EventEmitter()
         self.init()
 
+    def init(self):
+        self.index = 0
+        self.line_number = None
+        self.actions = []
+        self.state = self.PositioningState()
+        self.toolstate = self.ToolState()
+        self.work_init()
+
+    def work_init(self):
+        self.stop = True
+        self.iter = 0
+        self.display_paused = False
+        for (_, action) in self.actions:
+            action.completed.clear()
+        if len(self.actions) > 0:
+            self.line_selected(self.actions[0][0])
+
     def __add_action(self, index, action):
         action.action_started += self.__action_started
         self.actions.append((index, action))
@@ -328,10 +360,24 @@ class Machine(object):
                                             acc=self.state.acc,
                                             exact_stop=exact_stop,
                                             sender=self.sender))
-        elif self.state.motion == self.PositioningState.MotionGroup.round_cw:
+        elif self.state.motion == self.PositioningState.MotionGroup.round_cw or
+             self.state.motion == self.PositioningState.MotionGroup.round_ccw:
+
+            ccw = self.state.motion == self.PositioningState.MotionGroup.round_ccw
             feed = self.state.feed
-        elif self.state.motion == self.PositioningState.MotionGroup.round_ccw:
+            plane = self.state.plane
+            r = pos.R
+            self.__add_action(self.index, helix.HelixMovement(delta,
+                                            r=r,
+                                            axis=plane,
+                                            ccw=ccw,
+                                            feed=feed,
+                                            acc=self.state.acc,
+                                            exact_stop=exact_stop,
+                                            sender=self.sender))
+        elif
             feed = self.state.feed
+            print("ccw")
         else:
             raise Exception("Not implemented %s motion state" % self.state.motion)
 
@@ -476,23 +522,6 @@ class Machine(object):
         if i >= len(self.actions):
             return
         self.line_selected(self.actions[i][0])
-
-    def init(self):
-        self.index = 0
-        self.line_number = None
-        self.actions = []
-        self.state = self.PositioningState()
-        self.toolstate = self.ToolState()
-        self.work_init()
-
-    def work_init(self):
-        self.stop = True
-        self.iter = 0
-        self.display_paused = False
-        for (_, action) in self.actions:
-            action.completed.clear()
-        if len(self.actions) > 0:
-            self.line_selected(self.actions[0][0])
 
     def load(self, frames):
         self.init()

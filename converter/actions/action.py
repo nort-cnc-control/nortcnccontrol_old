@@ -79,8 +79,9 @@ class Movement(MCUAction):
     def dir1(self):
         return None
 
-    def __init__(self, feed, acc, **kwargs):
+    def __init__(self, feed, acc, exact_stop, **kwargs):
         MCUAction.__init__(self, **kwargs)
+        self.exact_stop = exact_stop
         self.feed = feed
         self.feed0 = 0
         self.feed1 = 0
