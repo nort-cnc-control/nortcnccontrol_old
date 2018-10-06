@@ -11,3 +11,6 @@ class WaitResume(action.InstantAction):
     def perform(self):
         self.paused()
         return False
+
+    def emulate(self):
+        print("Wait resume")

@@ -22,6 +22,8 @@ import threading
 # Supported codes
 #
 # G0/G1
+# G2/G3
+# G17/G18/G19
 # G28
 # G90
 # G91
@@ -567,6 +569,10 @@ class Machine(object):
     def work_start(self):
         self.work_init()
         return self.work_continue()
+
+    def emulate(self):
+        for action in self.actions:
+            action.emulate()
 
     def dispose(self):
         for (_, act) in self.actions:

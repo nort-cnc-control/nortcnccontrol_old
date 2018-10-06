@@ -32,6 +32,46 @@ class HelixMovement(action.Movement):
         code = type_cmd + feed_cmd + center_cmd + dir_cmd + delta_cmd
         return code
 
+    # Find center of arc, and tangents on begin and end
+    def __find_geometry_r(self, d, r, ccw):
+        D = d.magnitude()
+
+        if D == 0:
+            raise Exception("Line movement")
+
+        if r < D / 2:
+            raise Exception("Too small radius")
+        q = (r**2 - (D/2)**2)**0.5
+
+        if (ccw is False and r > 0) or (ccw is True and r < 0):
+            # Clock wise or ccw with angle > 180
+            c = euclid3.Vector2(d.x/2 + d.y/D * q, d.y/2 - d.x/D * q)
+            if r > 0:
+                p0 = euclid3.Vector2(-c.y, c.x)
+                p1 = euclid3.Vector2(-(c.y - d.y), c.x - d.x)
+            else:
+                p0 = euclid3.Vector2(c.y, -c.x)
+                p1 = euclid3.Vector2((c.y - d.y), -(c.x - d.x))
+        else:
+            # Counter clock wise or cw with angle > 180
+            c = euclid3.Vector2(d.x/2 - d.y/D * q, d.y/2 + d.x/D * q)
+            if r > 0:
+                p0 = euclid3.Vector2(c.y, -c.x)
+                p1 = euclid3.Vector2(c.y - d.y, -(c.x - d.x))
+            else:
+                p0 = euclid3.Vector2(-c.y, c.x)
+                p1 = euclid3.Vector2(-(c.y - d.y), c.x - d.x)
+
+        p0 = p0 / p0.magnitude()
+        p1 = p1 / p1.magnitude()
+
+        cosa = 1 - d.magnitude2() / (2 * r**2)
+        angle = math.acos(cosa)
+        if r < 0:
+            angle = 2*math.pi - angle
+
+        return c, angle, p0, p1
+
     def __init__(self, delta, r, axis, ccw, feed, acc, **kwargs):
         action.Movement.__init__(self, feed=feed, acc=acc, **kwargs)
         self.axis = axis
@@ -50,46 +90,12 @@ class HelixMovement(action.Movement):
             d = euclid3.Vector2(delta.z, delta.x)
             h = delta.y
 
-        D = d.magnitude()
+        # c     - center of circle
+        # angle - angle of arc
+        # p0    - tangent at begin
+        # p1    - tangent at end
+        self.center, angle, p0, p1 = self.__find_geometry_r(d, r, ccw)
 
-        if D == 0:
-            # line movement along axis
-            return
-
-        if r < D / 2:
-            raise Exception("Too small radius")
-        q = (r**2 - (D/2)**2)**0.5
-        # c - center of circle
-        # p0 - tangent at begin
-        # p1 - tangent at end
-        if (ccw is False and r > 0) or (ccw is True and r < 0):
-            # Clock wise
-            c = euclid3.Vector2(d.x/2 + d.y/D * q, d.y/2 - d.x/D * q)
-            if r > 0:
-                p0 = euclid3.Vector2(-c.y, c.x)
-                p1 = euclid3.Vector2(-(c.y - d.y), c.x - d.x)
-            else:
-                p0 = euclid3.Vector2(c.y, -c.x)
-                p1 = euclid3.Vector2((c.y - d.y), -(c.x - d.x))
-        else:
-            # Counter clock wise
-            c = euclid3.Vector2(d.x/2 - d.y/D * q, d.y/2 + d.x/D * q)
-            if r > 0:
-                p0 = euclid3.Vector2(c.y, -c.x)
-                p1 = euclid3.Vector2(c.y - d.y, -(c.x - d.x))
-            else:
-                p0 = euclid3.Vector2(-c.y, c.x)
-                p1 = euclid3.Vector2(-(c.y - d.y), c.x - d.x)
-
-        self.center = c
-
-        p0 = p0 / p0.magnitude()
-        p1 = p1 / p1.magnitude()
-
-        cosa = -c.x * (d.x - c.x) - c.y * (d.y - c.y) / (c.magnitude() * (d - c).magnitude())
-        angle = math.acos(cosa)
-        if r < 0:
-            angle = 2*math.pi - angle
         l = abs(r) * angle
         tan = h / l
         tan0 = euclid3.Vector3(p0.x, p0.y, tan)
