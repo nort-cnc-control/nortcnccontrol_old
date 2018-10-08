@@ -10,6 +10,3 @@ class Finish(action.InstantAction):
     def perform(self):
         self.finished(self)
         return False
-
-    def emulate(self):
-        print("Finish")

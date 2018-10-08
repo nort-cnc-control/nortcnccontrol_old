@@ -12,10 +12,6 @@ class Action(object):
     def run(self):
         return self.act()
 
-    @abc.abstractmethod
-    def emulate(self):
-        pass
-
     def dispose(self):
         pass
 
@@ -70,9 +66,6 @@ class MCUAction(Action):
         self.completed.clear()
         self.Nid = self.sender.send_command(cmd)
         return True
-
-    def emulate(self):
-        print("CMD: %s" % self.command())
 
 class Movement(MCUAction):
     def is_moving(self):

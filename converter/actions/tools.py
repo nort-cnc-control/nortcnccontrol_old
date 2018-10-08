@@ -13,9 +13,6 @@ class WaitTool(action.InstantAction):
         self.tool_changed(self.tool)
         return False
 
-    def emulate(self):
-        print("Waiting tool %i" % self.tool)
-
 class SetSpeed(action.MCUAction):
 
     def __init__(self, speed, **kwargs):

@@ -11,6 +11,7 @@ from . import parser
 
 from .actions import homing
 from .actions import linear
+from .actions import helix
 from .actions import action
 from .actions import pause
 from .actions import tools
@@ -116,6 +117,10 @@ class Machine(object):
                     self.motion = self.MotionGroup.fast_move
                 elif cmd.value == 1:
                     self.motion = self.MotionGroup.line
+                if cmd.value == 2:
+                    self.motion = self.MotionGroup.round_cw
+                elif cmd.value == 3:
+                    self.motion = self.MotionGroup.round_ccw
                 elif cmd.value == 17:
                     self.plane = self.PlaneGroup.xy
                 elif cmd.value == 18:
@@ -279,6 +284,7 @@ class Machine(object):
                     break
 
     def __init__(self, sender):
+        print("Creating machine...")
         self.stop          = True
         self.sender        = sender
         self.running       = event.EventEmitter()
@@ -287,6 +293,7 @@ class Machine(object):
         self.line_selected = event.EventEmitter()
         self.tool_selected = event.EventEmitter()
         self.init()
+        print("done")
 
     def init(self):
         self.index = 0
@@ -362,7 +369,7 @@ class Machine(object):
                                             acc=self.state.acc,
                                             exact_stop=exact_stop,
                                             sender=self.sender))
-        elif self.state.motion == self.PositioningState.MotionGroup.round_cw or
+        elif self.state.motion == self.PositioningState.MotionGroup.round_cw or \
              self.state.motion == self.PositioningState.MotionGroup.round_ccw:
 
             ccw = self.state.motion == self.PositioningState.MotionGroup.round_ccw
@@ -377,9 +384,6 @@ class Machine(object):
                                             acc=self.state.acc,
                                             exact_stop=exact_stop,
                                             sender=self.sender))
-        elif
-            feed = self.state.feed
-            print("ccw")
         else:
             raise Exception("Not implemented %s motion state" % self.state.motion)
 
@@ -571,6 +575,8 @@ class Machine(object):
         return self.work_continue()
 
     def emulate(self):
+        print("Begin emulating")
+        self.work_init()
         for action in self.actions:
             action.emulate()
 
