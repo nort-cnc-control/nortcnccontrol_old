@@ -316,14 +316,6 @@ class Machine(object):
         action.action_started += self.__action_started
         self.actions.append((index, action))
 
-    def __program_end(self):
-        act = program.Finish()
-        act.finished += self.__finish
-        self.__add_action(self.index, act)
-
-    def __finish(self, action):
-        self.stop = True
-
     def __set_feed(self, feed):
         if self.state.feed_mode != self.PositioningState.FeedRateGroup.feed:
             raise Exception("Unsupported feed mode %s" % self.state.feed_mode)
@@ -335,7 +327,10 @@ class Machine(object):
     def __set_jerk(self, jerk):
         self.state.jerk = jerk
 
-    def __insert_move(self, pos, exact_stop):
+    #region Add MCU actions to queue
+
+    #region movement
+    def __find_delta(self, pos):
         newpos = self.state.pos
 
         if self.state.positioning == self.PositioningState.PositioningGroup.relative:
@@ -354,65 +349,100 @@ class Machine(object):
                 newpos = euclid3.Vector3(newpos.x, newpos.y, pos.Z)
 
         delta = newpos - self.state.pos
+        return delta
 
+    def __insert_fast_movement(self, delta):
+        movement = linear.LinearMovement(delta, feed=self.state.fastfeed,
+                                         acc=self.state.acc,
+                                         exact_stop=exact_stop,
+                                         sender=self.sender)
+        self.__add_action(self.index, movement)
+
+    def __insert_movement(self, delta):
+        movement = linear.LinearMovement(delta, feed=self.state.feed,
+                                         acc=self.state.acc,
+                                         exact_stop=exact_stop,
+                                         sender=self.sender)
+        self.__add_action(self.index, movement)
+
+    def __insert_arc(self, delta, R):
+        ccw = self.state.motion == self.PositioningState.MotionGroup.round_ccw
+        plane = self.state.plane
+        movement = helix.HelixMovement(delta, feed=self.state.feed, r=R,
+                                       axis=self.state.plane, ccw=ccw,
+                                       acc=self.state.acc,
+                                       exact_stop=exact_stop,
+                                       sender=self.sender)
+        self.__add_action(self.index, movement)
+
+    def __insert_move(self, pos, exact_stop):
+        delta = self.__find_delta(pos)
+
+        # Normal linear move
         if self.state.motion == self.PositioningState.MotionGroup.line:
-            feed = self.state.feed
-            self.__add_action(self.index, linear.LinearMovement(delta,
-                                            feed=feed,
-                                            acc=self.state.acc,
-                                            exact_stop=exact_stop,
-                                            sender=self.sender))
+            self.__insert_movement(delta)
+        
+        # Fast linear move
         elif self.state.motion == self.PositioningState.MotionGroup.fast_move:
-            feed = self.state.fastfeed
-            self.__add_action(self.index, linear.LinearMovement(delta,
-                                            feed=feed,
-                                            acc=self.state.acc,
-                                            exact_stop=exact_stop,
-                                            sender=self.sender))
+            self.__insert_fast_movement(delta)
+        
+        # Arc movement
         elif self.state.motion == self.PositioningState.MotionGroup.round_cw or \
              self.state.motion == self.PositioningState.MotionGroup.round_ccw:
+            self.__insert_arc(delta, pos.R)
 
-            ccw = self.state.motion == self.PositioningState.MotionGroup.round_ccw
-            feed = self.state.feed
-            plane = self.state.plane
-            r = pos.R
-            self.__add_action(self.index, helix.HelixMovement(delta,
-                                            r=r,
-                                            axis=plane,
-                                            ccw=ccw,
-                                            feed=feed,
-                                            acc=self.state.acc,
-                                            exact_stop=exact_stop,
-                                            sender=self.sender))
         else:
             raise Exception("Not implemented %s motion state" % self.state.motion)
 
         self.state.pos = newpos
 
+    #endregion
+
     def __insert_homing(self, frame):
         self.__add_action(self.index, homing.ToBeginMovement(sender=self.sender))
+
+    def __insert_set_speed(self, speed):
+        self.toolstate.speed = speed
+        self.__add_action(self.index, tools.SetSpeed(speed, sender=self.sender))
+    #endregion Add MCU actions to queue
+
+
+    #region Add UI action 
+
+    #region pause
+    def __paused(self):
+        self.display_paused = True
 
     def __insert_pause(self):
         p = pause.WaitResume()
         p.paused += self.__paused
         self.__add_action(self.index, p)
+    #endregion
 
-    def __paused(self):
-        self.display_paused = True
+    #region tool
+    def __tool_selected(self, tool):
+        self.tool_selected(tool)
 
     def __insert_select_tool(self, tool):
         self.toolstate.tool = tool
         tl = tools.WaitTool(tool)
         tl.tool_changed += self.__tool_selected
         self.__add_action(self.index, tl)
+    #endregion
 
-    def __tool_selected(self, tool):
-        self.tool_selected(tool)
+    #region Finish
+    def __finish(self, action):
+            self.stop = True
 
-    def __insert_set_speed(self, speed):
-        self.toolstate.speed = speed
-        self.__add_action(self.index, tools.SetSpeed(speed, sender=self.sender))
+    def __program_end(self):
+        act = program.Finish()
+        act.finished += self.__finish
+        self.__add_action(self.index, act)
+    #endregion
 
+    #endregion Add UI action
+    
+    #region Processing frame
     def __process_begin(self, frame):
         self.toolstate.process_begin(frame)
 
@@ -461,6 +491,7 @@ class Machine(object):
         self.__process_end(frame)
 
         self.index += 1
+    #endregion
 
     def __optimize(self):
         prevmove = None
@@ -573,12 +604,6 @@ class Machine(object):
     def work_start(self):
         self.work_init()
         return self.work_continue()
-
-    def emulate(self):
-        print("Begin emulating")
-        self.work_init()
-        for action in self.actions:
-            action.emulate()
 
     def dispose(self):
         for (_, act) in self.actions:

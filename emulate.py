@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# This is debug
+
 #from converter import machine
 from converter.machine import Machine
 from converter.parser import GLineParser

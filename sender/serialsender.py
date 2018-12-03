@@ -6,6 +6,7 @@ import serial
 import event
 import threading
 import re
+from . import isender
 
 class SerialSender(object):
 
@@ -50,7 +51,7 @@ class SerialSender(object):
                     Q = int(match.group(2))
                     self.ev_slots(Q)
                     continue
-            
+
                 match = self.reerror.match(ans)
                 if match != None:
                     Nid = match.group(1)

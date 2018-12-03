@@ -2,6 +2,7 @@ import abc
 import event
 import threading
 
+# Basic class for all actions
 class Action(object):
     def __init__(self, **kwargs):
         self.completed = threading.Event()
@@ -22,6 +23,7 @@ class Action(object):
     def is_moving(self):
         return False
 
+# Local actions
 class InstantAction(Action):
 
     @abc.abstractmethod
@@ -35,6 +37,7 @@ class InstantAction(Action):
         self.action_completed(self)
         return res
 
+# Actions, which generates commands for MCU
 class MCUAction(Action):
 
     def __init__(self, sender, **kwargs):
@@ -67,6 +70,7 @@ class MCUAction(Action):
         self.Nid = self.sender.send_command(cmd)
         return True
 
+# Movement actions
 class Movement(MCUAction):
     def is_moving(self):
         return True

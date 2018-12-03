@@ -19,7 +19,7 @@ from converter.machine import Machine
 from converter.parser import GLineParser
 from converter.machinethread import MachineThread
 
-from sender import sender
+from sender import serialsender
 
 def usage():
     pass
@@ -109,7 +109,7 @@ class Controller(object):
     def __init__(self, port, brate, file=None):
         self.frames = []
 
-        self.sender = sender.SerialSender(port, brate)
+        self.sender = serialsender.SerialSender(port, brate)
 
         self.uievents = queue.Queue()
         self.uicommands = queue.Queue()
