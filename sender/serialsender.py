@@ -59,24 +59,26 @@ class SerialSender(object):
 
                 print("Unknown answer from MCU: %s" % ans)
 
+    queued = event.EventEmitter()
     completed = event.EventEmitter()
     started = event.EventEmitter()
-    __slots = event.EventEmitter()
-
+    has_slots = threading.Event()
+    
     def __init__(self, port, bdrate):
-        self.id = 0
-        self.has_slots = threading.Event()
+        self.__id = 0    
         self.__qans = threading.Event()
+        self.__slots = event.EventEmitter()
+        self.__finish_event = threading.Event()
+    
         self.port = port
         self.baudrate = bdrate
-        self.ser = serial.Serial(self.port, self.baudrate,
+        self.__ser = serial.Serial(self.port, self.baudrate,
                                  bytesize=8, parity='N', stopbits=1)
-        self.finish_event = threading.Event()
-        self.listener = self.SerialReceiver(self.ser, self.finish_event,
-                                            self.completed, self.started, self.__slots)
+        self.__listener = self.SerialReceiver(self.__ser, self.__finish_event,
+                                              self.completed, self.started, self.__slots)
         
         self.__slots += self.__on_slots
-        self.listener.start()
+        self.__listener.start()
         self.has_slots.set()
 
     def __on_slots(self, Q):
@@ -88,15 +90,16 @@ class SerialSender(object):
 
     def send_command(self, command):
         self.__qans.clear()
-        cmd = ("N%i" % self.id) + command + "\n"
+        cmd = ("N%i" % self.__id) + command + "\n"
         print("Sending command %s" % cmd)
-        self.ser.write(bytes(cmd, "UTF-8"))
-        self.ser.flush()
-        oid = self.id
-        self.id += 1
+        self.queued(self.__id)
+        self.__ser.write(bytes(cmd, "UTF-8"))
+        self.__ser.flush()
+        oid = self.__id
+        self.__id += 1
         self.__qans.wait()
         return oid
 
     def close(self):
-        self.finish_event.set()
-        self.ser.close()
+        self.__finish_event.set()
+        self.__ser.close()
