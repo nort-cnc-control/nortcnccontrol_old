@@ -20,6 +20,7 @@ from converter.parser import GLineParser
 from converter.machinethread import MachineThread
 
 from sender import serialsender
+from sender import emulatorsender
 
 def usage():
     pass
@@ -204,7 +205,8 @@ def main():
         print("Please, specify port -p")
         sys.exit(1)
 
-    sender = serialsender.SerialSender(port, brate)
+    #sender = serialsender.SerialSender(port, brate)
+    sender = emulatorsender.EmulatorSender()
 
     ctl = Controller(sender, infile)
     ctl.run()
