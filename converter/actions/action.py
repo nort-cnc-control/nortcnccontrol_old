@@ -47,6 +47,7 @@ class MCUAction(Action):
         self.Nid = None
         self.sender.completed += self.__received_completed
         self.sender.started += self.__received_started
+        self.__sending = False
 
     @abc.abstractmethod
     def command(self):
@@ -54,6 +55,11 @@ class MCUAction(Action):
 
     def dispose(self):
         self.sender.completed -= self.__received_completed
+        self.sender.started -= self.__received_started
+        self.sender.queued -= self.__received_queued
+        
+    def __received_queued(self, nid):
+        self.Nid = int(nid)
 
     def __received_started(self, nid):
         if int(nid) == self.Nid:
@@ -65,9 +71,11 @@ class MCUAction(Action):
             self.action_completed(self)
 
     def act(self):
+        self.sender.queued += self.__received_queued
         cmd = self.command()
         self.completed.clear()
-        self.Nid = self.sender.send_command(cmd)
+        self.sender.send_command(cmd)
+        self.sender.queued -= self.__received_queued
         return True
 
 # Movement actions
