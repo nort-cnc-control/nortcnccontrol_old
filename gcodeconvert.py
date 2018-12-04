@@ -106,10 +106,10 @@ class Controller(object):
                 except queue.Empty:
                     pass
 
-    def __init__(self, port, brate, file=None):
+    def __init__(self, sender, file=None):
         self.frames = []
 
-        self.sender = serialsender.SerialSender(port, brate)
+        self.sender = sender
 
         self.uievents = queue.Queue()
         self.uicommands = queue.Queue()
@@ -204,7 +204,9 @@ def main():
         print("Please, specify port -p")
         sys.exit(1)
 
-    ctl = Controller(port, brate, infile)
+    sender = serialsender.SerialSender(port, brate)
+
+    ctl = Controller(sender, infile)
     ctl.run()
     sys.exit(0)
 
