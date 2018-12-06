@@ -1,1 +1,1 @@
-all=["gui", "guithread"]
+all=["gui"]
