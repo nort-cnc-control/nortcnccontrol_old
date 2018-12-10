@@ -351,25 +351,35 @@ class Machine(object):
         delta = newpos - self.state.pos
         return delta
 
-    def __insert_fast_movement(self, delta):
+    def __insert_fast_movement(self, delta, exact_stop):
         movement = linear.LinearMovement(delta, feed=self.state.fastfeed,
                                          acc=self.state.acc,
                                          exact_stop=exact_stop,
                                          sender=self.sender)
         self.__add_action(self.index, movement)
 
-    def __insert_movement(self, delta):
+    def __insert_movement(self, delta, exact_stop):
         movement = linear.LinearMovement(delta, feed=self.state.feed,
                                          acc=self.state.acc,
                                          exact_stop=exact_stop,
                                          sender=self.sender)
         self.__add_action(self.index, movement)
 
-    def __insert_arc(self, delta, R):
+    def __axis_convert(self, axis):
+        if axis == self.PositioningState.PlaneGroup.xy:
+            axis = helix.HelixMovement.Axis.xy
+        elif axis == self.PositioningState.PlaneGroup.yz:
+            axis = helix.HelixMovement.Axis.yz
+        else:
+            axis = helix.HelixMovement.Axis.zx
+        return axis
+
+    def __insert_arc(self, delta, R, exact_stop):
         ccw = self.state.motion == self.PositioningState.MotionGroup.round_ccw
         plane = self.state.plane
+        axis = self.__axis_convert(self.state.plane)
         movement = helix.HelixMovement(delta, feed=self.state.feed, r=R,
-                                       axis=self.state.plane, ccw=ccw,
+                                       axis=axis, ccw=ccw,
                                        acc=self.state.acc,
                                        exact_stop=exact_stop,
                                        sender=self.sender)
@@ -380,21 +390,21 @@ class Machine(object):
 
         # Normal linear move
         if self.state.motion == self.PositioningState.MotionGroup.line:
-            self.__insert_movement(delta)
+            self.__insert_movement(delta, exact_stop)
         
         # Fast linear move
         elif self.state.motion == self.PositioningState.MotionGroup.fast_move:
-            self.__insert_fast_movement(delta)
+            self.__insert_fast_movement(delta, exact_stop)
         
         # Arc movement
         elif self.state.motion == self.PositioningState.MotionGroup.round_cw or \
              self.state.motion == self.PositioningState.MotionGroup.round_ccw:
-            self.__insert_arc(delta, pos.R)
+            self.__insert_arc(delta, pos.R, exact_stop)
 
         else:
             raise Exception("Not implemented %s motion state" % self.state.motion)
 
-        self.state.pos = newpos
+        self.state.pos += delta
 
     #endregion
 
@@ -596,7 +606,6 @@ class Machine(object):
                 self.paused(self.display_paused)
                 self.display_paused = False
                 return False
-        print("Wait for finishing last action")
         self.actions[len(self.actions) - 1][1].completed.wait()
         self.finished()
         return True

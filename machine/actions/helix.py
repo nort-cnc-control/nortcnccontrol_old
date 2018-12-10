@@ -65,7 +65,7 @@ class HelixMovement(action.Movement):
         p0 = p0 / p0.magnitude()
         p1 = p1 / p1.magnitude()
 
-        cosa = 1 - d.magnitude2() / (2 * r**2)
+        cosa = 1 - d.magnitude_squared() / (2 * r**2)
         angle = math.acos(cosa)
         if r < 0:
             angle = 2*math.pi - angle

@@ -11,10 +11,10 @@ class EmulatorSender(object):
 
     def __init__(self):
         self.id = 0
-        sel.has_slots.set()
+        self.has_slots.set()
     
     def send_command(self, command):
-        cmd = ("N%i" % self.id) + command + "\n"
+        cmd = ("N%i " % self.id) + command + "\n"
         print("Command %s" % cmd)
         self.queued(self.id)
         oid = self.id

@@ -8,7 +8,7 @@ class GCmd(object):
         self.value = s[1:]
         if "GMT".find(self.type) != -1:
             self.value = int(self.value)
-        elif "FXYZABCIJKS".find(self.type) != -1:
+        elif "FXYZABCIJKSR".find(self.type) != -1:
             self.value = float(self.value)
 
     def __repr__(self):
@@ -62,7 +62,7 @@ class GLineParser(object):
         if len(s) == 0:
             raise Exception("Invalid call of parse word")
         if not (s[0].isalpha() and s[0].isupper()):
-            raise Exception("Invalid call of parse word")
+            raise Exception("Invalid call of parse word %s" % s)
         cmd = s[0]
         s = s[1:]
         n = s
