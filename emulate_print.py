@@ -7,11 +7,11 @@ import machine.parser
 import sender
 import sender.emulatorsender
 
-import getopt
+import sys
 
 class Controller(object):
-    def __init__(self):
-        self.sender = sender.emulatorsender.EmulatorSender()
+    def __init__(self, sender):
+        self.sender = sender
         self.machine = machine.machine.Machine(self.sender)
         self.parser = machine.parser.GLineParser()
         self.machine.paused += self.continue_on_pause
@@ -34,9 +34,11 @@ class Controller(object):
     def run(self):
         self.machine.work_start()
 
-ctl = Controller()
+file = sys.argv[1]
 
-f = open("test.gcode")
+ctl = Controller(sender.emulatorsender.EmulatorSender())
+
+f = open(file)
 lines = f.readlines()
 f.close()
 
