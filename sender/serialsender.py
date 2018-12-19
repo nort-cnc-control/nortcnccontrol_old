@@ -3,10 +3,9 @@
 import time
 import sys
 import serial
-import event
+from common import event
 import threading
 import re
-from . import isender
 
 class SerialSender(object):
 

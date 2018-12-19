@@ -1,5 +1,5 @@
 import threading
-import event
+from common import event
 
 class EmulatorSender(object):
     

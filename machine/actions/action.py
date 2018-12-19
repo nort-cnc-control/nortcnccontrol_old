@@ -1,6 +1,7 @@
 import abc
-import event
 import threading
+
+from common import event
 
 # Basic class for all actions
 class Action(object):

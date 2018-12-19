@@ -1,5 +1,6 @@
-import event
 from . import action
+
+from common import event
 
 class Finish(action.InstantAction):
 

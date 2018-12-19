@@ -1,4 +1,4 @@
-import event
+from common import event
 
 from . import action
 

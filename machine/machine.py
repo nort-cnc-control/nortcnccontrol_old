@@ -17,7 +17,7 @@ from .actions import pause
 from .actions import tools
 from .actions import program
 
-import event
+from common import event
 import threading
 
 # Supported codes
