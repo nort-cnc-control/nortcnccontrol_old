@@ -603,7 +603,8 @@ class Machine(object):
             self.iter += 1
 
             if not cont and not self.stop:
-                self.paused(self.display_paused)
+                if self.display_paused:
+                    self.paused(self.display_paused)
                 self.display_paused = False
                 return False
         self.actions[len(self.actions) - 1][1].completed.wait()

@@ -46,6 +46,9 @@ class Controller(object):
     def __start(self):
         self.__send_command("start")
 
+    def __reset(self):
+        self.__send_command("reset")
+
     def __load_file(self, filename):
         file = open(filename, encoding="utf-8")
         lines = file.readlines()
@@ -100,8 +103,8 @@ class Controller(object):
         self.sock.connect(self.sockpath)
         
         GLib.io_add_watch(self.sock, GLib.IO_IN, self.__on_receive_event)
+        self.__reset()
         self.control.run()
-    
 
 if __name__ == "__main__":
 

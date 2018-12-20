@@ -62,7 +62,7 @@ class Controller(object):
     def __continue_on_pause(self, reason):
         # send RPC message about event
         self.state = "paused"
-        self.__print_state()
+        self.__print_state("Pause")
 
     def __line_selected(self, line):
         self.__emit_message({"type": "line", "line": line})
