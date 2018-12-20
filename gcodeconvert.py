@@ -63,11 +63,24 @@ class Controller(object):
             type = data["type"]
         except:
             return True
+        print(data)
         if type == "loadlines":
             lines = data["lines"]
             self.control.clear_commands()
             for line in lines:
                 self.control.add_command(line)
+        elif type == "line":
+            line = data["line"]
+            self.control.select_line(line)
+        elif type == "state":
+            state = data["state"]
+            message = data["message"]
+            if state == "paused":
+                if message != "":
+                    self.control.show_ok(message)
+            elif state == "completed":
+                self.control.show_ok("Finished")
+
         return True
 
     def run(self):

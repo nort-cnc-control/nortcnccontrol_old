@@ -57,11 +57,15 @@ class Controller(object):
         self.machine.paused += self.__continue_on_pause
         self.machine.finished += self.__done
         self.machine.tool_selected += self.__tool_selected
+        self.machine.line_selected += self.__line_selected
 
     def __continue_on_pause(self, reason):
         # send RPC message about event
         self.state = "paused"
-        self.__print_state(reason)
+        self.__print_state()
+
+    def __line_selected(self, line):
+        self.__emit_message({"type": "line", "line": line})
 
     def __tool_selected(self, tool):
         # send RPC message about event
