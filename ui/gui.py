@@ -1,4 +1,4 @@
-import event
+from common import event
 import threading
 import queue
 import enum
@@ -26,7 +26,7 @@ class Interface(object):
         return True
 
     def __init__(self):
-        self.load_file        = event.EventEmitter()
+        self.load_file       = event.EventEmitter()
         self.start_clicked    = event.EventEmitter()
         self.continue_clicked = event.EventEmitter()
         self.pause_clicked    = event.EventEmitter()

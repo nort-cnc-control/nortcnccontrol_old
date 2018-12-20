@@ -22,7 +22,7 @@ class Controller(object):
             return
         msg["source"] = "server"
         ser = json.dumps(msg)
-        print("sending: ", ser)
+        #print("sending: ", ser)
         self.socket.sendto(bytes(ser, "utf-8"), self.clientaddr)
 
     def __wait_message(self):
@@ -59,20 +59,15 @@ class Controller(object):
 
     def __continue_on_pause(self, reason):
         # send RPC message about event
-        msg = {
-            "type" : "break",
-            "message" : reason,
-        }
-        self.__emit_message(msg)
         self.state = "paused"
+        self.print_state(reason)
 
     def __done(self):
         # send RPC message about event
-        msg = {
-            "type" : "finish",
-        }
         self.state = "completed"
-        self.__emit_message(msg)
+        self.print_state()
+        self.state = "init"
+        self.print_state()
 
     def load(self, lines):
         frames = []
@@ -81,8 +76,12 @@ class Controller(object):
             frames.append(frame)
         self.machine.load(frames)
 
-    def print_state(self):
-        self.__emit_message({"type" : "state", "state" : self.state})
+    def print_state(self, message = ""):
+        self.__emit_message({
+            "type" : "state",
+            "state" : self.state,
+            "message" : message
+        })
 
     def run(self):    
         self.running = True
@@ -90,7 +89,7 @@ class Controller(object):
             msg, addr = self.__wait_message()
             self.clientaddr = addr
 
-            print("Received: %s" % str(msg))
+            #print("Received: %s" % str(msg))
             if not ("type" in msg):
                 continue
             if msg["type"] == "getstate":
