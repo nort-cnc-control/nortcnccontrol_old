@@ -44,6 +44,12 @@ class Interface(object):
         load_menu = builder.get_object("open")
         load_menu.connect('activate', self.__load_menu_event)
 
+        self.ffilter = Gtk.FileFilter()
+        self.ffilter.set_name("G-Code")
+        self.ffilter.add_pattern("*.gcode")
+        self.affilter = Gtk.FileFilter()
+        self.affilter.set_name("All files")
+        self.affilter.add_pattern("*")
 
         self.glarea = builder.get_object("model")
         self.glarea.connect('render', self.__render_path, None)
@@ -93,6 +99,8 @@ class Interface(object):
                                        Gtk.FileChooserAction.OPEN,
                                        (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
                                         Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
+        dialog.add_filter(self.ffilter)
+        dialog.add_filter(self.affilter)
         response = dialog.run()
         if response == Gtk.ResponseType.OK:
             self.load_file(dialog.get_filename())
