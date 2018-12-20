@@ -127,6 +127,14 @@ class Controller(object):
                     self.__load_lines(lines)
                     self.state = "init"
                     self.__print_state("G-Code loaded")
+                elif msg["command"] == "stop":
+                    self.machine.work_stop()
+                    self.state = "init"
+                    self.__print_state()
+                elif msg["command"] == "home":
+                    self.state = "running"
+                    self.__print_state()
+                    self.machine.homing(True, True, True)
                 else:
                     pass
 

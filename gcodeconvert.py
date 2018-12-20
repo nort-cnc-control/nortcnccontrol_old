@@ -29,6 +29,7 @@ class Controller(object):
         self.control.load_file += self.__load_file
         self.control.start_clicked += self.__start
         self.control.continue_clicked += self.__continue
+        self.control.stop_clicked += self.__stop
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
 
         self.control.switch_to_initial_mode()
@@ -48,6 +49,9 @@ class Controller(object):
 
     def __reset(self):
         self.__send_command("reset")
+
+    def __stop(self):
+        self.__send_command("stop")
 
     def __load_file(self, filename):
         file = open(filename, encoding="utf-8")

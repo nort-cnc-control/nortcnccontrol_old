@@ -577,11 +577,13 @@ class Machine(object):
         self.__optimize()
 
     def homing(self, x, y, z):
-        if not self.stop:
-            raise Exception("Machine should be stopped")
-        self.init()
-        cmd = parser.GCmd("G28")
-        self.__process(parser.GFrame([cmd]))
+        #if not self.stop:
+        #    raise Exception("Machine should be stopped")
+        #self.init()
+        #cmd = parser.GCmd("G28")
+        #self.__process(parser.GFrame([cmd]))
+        #self.work_start()
+        pass
  
     def work_continue(self):
         self.stop = False
@@ -607,8 +609,9 @@ class Machine(object):
                     self.paused(self.display_paused)
                 self.display_paused = False
                 return False
-        self.actions[len(self.actions) - 1][1].completed.wait()
+        self.actions[-1][1].completed.wait()
         self.finished()
+        self.stop = True
         return True
 
     def work_start(self):
@@ -620,3 +623,8 @@ class Machine(object):
             act.dispose()
         self.actions = []
         self.work_init()
+
+    def work_stop(self):
+        self.work_init()
+        self.stop = True
+        self.finished()
