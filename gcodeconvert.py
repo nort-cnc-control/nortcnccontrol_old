@@ -45,16 +45,29 @@ class Controller(object):
         self.__send_command("start")
 
     def __load_file(self, filename):
-        pass
+        file = open(filename, encoding="utf-8")
+        lines = file.readlines()
+        file.close()
+        r = {
+            "type" : "command",
+            "command" : "load",
+            "lines" : lines,
+        }
+        self.sock.send(bytes(json.dumps(r), "utf-8"))
 
     def __on_receive_event(self, sock, cond):
         res = sock.recv(1024)
         try:
             res = res.decode("utf-8")
             data = json.loads(res)
-            print(data)
+            type = data["type"]
         except:
-            pass
+            return True
+        if type == "loadlines":
+            lines = data["lines"]
+            self.control.clear_commands()
+            for line in lines:
+                self.control.add_command(line)
         return True
 
     def run(self):
@@ -64,7 +77,7 @@ class Controller(object):
         
         self.sock.bind(tmppath)
         self.sock.connect(self.sockpath)
-
+        
         GLib.io_add_watch(self.sock, GLib.IO_IN, self.__on_receive_event)
         self.control.run()
     

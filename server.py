@@ -56,27 +56,34 @@ class Controller(object):
         self.parser = machine.parser.GLineParser()
         self.machine.paused += self.__continue_on_pause
         self.machine.finished += self.__done
+        self.machine.tool_selected += self.__tool_selected
 
     def __continue_on_pause(self, reason):
         # send RPC message about event
         self.state = "paused"
-        self.print_state(reason)
+        self.__print_state(reason)
+
+    def __tool_selected(self, tool):
+        # send RPC message about event
+        self.state = "paused"
+        self.__print_state("Please insert tool #%i" % tool)
 
     def __done(self):
         # send RPC message about event
         self.state = "completed"
-        self.print_state()
+        self.__print_state()
         self.state = "init"
-        self.print_state()
+        self.__print_state()
 
-    def load(self, lines):
+    def __load_lines(self, lines):
         frames = []
         for line in lines:
             frame = self.parser.parse(line)
             frames.append(frame)
         self.machine.load(frames)
+        self.__emit_message({"type":"loadlines", "lines":lines})
 
-    def print_state(self, message = ""):
+    def __print_state(self, message = ""):
         self.__emit_message({
             "type" : "state",
             "state" : self.state,
@@ -93,24 +100,25 @@ class Controller(object):
             if not ("type" in msg):
                 continue
             if msg["type"] == "getstate":
-                self.print_state()
+                self.__print_state()
             elif msg["type"] == "command":
                 if msg["command"] == "start":
                     self.state = "running"
-                    self.print_state()
+                    self.__print_state()
                     self.machine.work_start()
                 elif msg["command"] == "continue":
                     self.state = "running"
-                    self.print_state()
+                    self.__print_state()
                     self.machine.work_continue()
                 elif msg["command"] == "exit":
                     self.state = "exit"
-                    self.print_state()
+                    self.__print_state()
                     self.running = False
                 elif msg["command"] == "load":
                     lines = msg["lines"]
-                    self.load(lines)
+                    self.__load_lines(lines)
                     self.state = "init"
+                    self.__print_state("G-Code loaded")
                 else:
                     pass
 
