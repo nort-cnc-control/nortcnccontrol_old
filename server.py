@@ -23,7 +23,10 @@ class Controller(object):
         msg["source"] = "server"
         ser = json.dumps(msg)
         #print("sending: ", ser)
-        self.socket.sendto(bytes(ser, "utf-8"), self.clientaddr)
+        try:
+            self.socket.sendto(bytes(ser, "utf-8"), self.clientaddr)
+        except Exception as e:
+            print(e)
 
     def __wait_message(self):
         while True:
@@ -139,7 +142,7 @@ class Controller(object):
                     pass
 
 port = "/dev/ttyUSB0"
-brate = 9600
+brate = 57600
 emulate = False
 
 try:
@@ -161,6 +164,7 @@ for o, a in opts:
 
 
 if emulate:
+    print("Emulate")
     sender = sender.emulatorsender.EmulatorSender()
 else:
     sender = sender.serialsender.SerialSender(port, brate)
