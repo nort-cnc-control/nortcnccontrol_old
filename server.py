@@ -138,6 +138,32 @@ class Controller(object):
                 else:
                     pass
 
-sender = sender.emulatorsender.EmulatorSender()
+port = "/dev/ttyUSB0"
+brate = 9600
+emulate = False
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "ep:b:", ["emulate", "port=", "baudrate="])
+except getopt.GetoptError as err:
+    # print help information and exit:
+    print(err) # will print something like "option -a not recognized"
+    sys.exit(2)
+
+for o, a in opts:
+    if o == "-e":
+        emulate = True
+    elif o in ("-p", "--port"):
+        port = a
+    elif o in ("-b", "--baudrate"):
+        brate = int(a)
+    else:
+        assert False, "unhandled option"
+
+
+if emulate:
+    sender = sender.emulatorsender.EmulatorSender()
+else:
+    sender = sender.serialsender.SerialSender(port, brate)
+
 controller = Controller(sender, "/tmp/cnccontrol")
 controller.run()
