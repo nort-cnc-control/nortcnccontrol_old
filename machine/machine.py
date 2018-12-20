@@ -614,7 +614,8 @@ class Machine(object):
         self.work_init()
         return self.work_continue()
 
-    def dispose(self):
+    def reset(self):
         for (_, act) in self.actions:
             act.dispose()
         self.actions = []
+        self.work_init()

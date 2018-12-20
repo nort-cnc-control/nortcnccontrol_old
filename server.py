@@ -106,7 +106,11 @@ class Controller(object):
             if msg["type"] == "getstate":
                 self.__print_state()
             elif msg["type"] == "command":
-                if msg["command"] == "start":
+                if msg["command"] == "reset":
+                    self.state = "init"
+                    self.machine.reset()
+                    self.__print_state()
+                elif msg["command"] == "start":
                     self.state = "running"
                     self.__print_state()
                     self.machine.work_start()

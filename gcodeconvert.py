@@ -31,6 +31,8 @@ class Controller(object):
         self.control.continue_clicked += self.__continue
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
 
+        self.control.switch_to_initial_mode()
+
     def __send_command(self, command):
         r = {
             "type" : "command",
@@ -75,10 +77,16 @@ class Controller(object):
         elif type == "state":
             state = data["state"]
             message = data["message"]
-            if state == "paused":
+            if state == "init":
+                self.control.switch_to_initial_mode()
+            elif state == "running":
+                self.control.switch_to_running_mode()
+            elif state == "paused":
+                self.control.switch_to_paused_mode()
                 if message != "":
                     self.control.show_ok(message)
             elif state == "completed":
+                self.control.switch_to_initial_mode()
                 self.control.show_ok("Finished")
 
         return True
