@@ -121,6 +121,7 @@ class Interface(object):
         self.id = 1
 
     def add_command(self, line):
+        line = line.strip()
         self.gstore.append([self.id, line])
         self.id += 1
 

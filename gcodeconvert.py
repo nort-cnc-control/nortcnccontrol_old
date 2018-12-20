@@ -57,10 +57,14 @@ class Controller(object):
         file = open(filename, encoding="utf-8")
         lines = file.readlines()
         file.close()
+
+        cmds = []
+        for line in lines:
+            cmds.append(line.strip())
         r = {
             "type" : "command",
             "command" : "load",
-            "lines" : lines,
+            "lines" : cmds,
         }
         self.sock.send(bytes(json.dumps(r), "utf-8"))
 
