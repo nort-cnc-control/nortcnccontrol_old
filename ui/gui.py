@@ -55,12 +55,21 @@ class Interface(object):
         self.glarea.connect('render', self.__render_path, None)
         self.glarea.connect('resize', self.__resize)
 
+        #region code area
         self.gstore = builder.get_object("gcodeline")
         self.gcodeview = builder.get_object("gcode")
-        linecolumn = Gtk.TreeViewColumn("Line", Gtk.CellRendererText(), text=0)
+
+        renderer = Gtk.CellRendererText()
+        renderer.set_padding(0, 0)
+        renderer.set_property("font", "Monospace")
+        renderer.set_fixed_height_from_font(1)
+
+        linecolumn = Gtk.TreeViewColumn("Line", renderer, text=0)
         self.gcodeview.append_column(linecolumn)
-        codecolumn = Gtk.TreeViewColumn("Code", Gtk.CellRendererText(), text=1)
+        codecolumn = Gtk.TreeViewColumn("Code", renderer, text=1)
         self.gcodeview.append_column(codecolumn)
+
+        #endregion code area
 
         self.pause_btn = builder.get_object("pause")
         self.pause_btn.connect("clicked", self.__pause_program)
