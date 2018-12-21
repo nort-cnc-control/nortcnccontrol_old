@@ -26,7 +26,11 @@ class SerialSender(object):
         def run(self):
             while not self.finish_event.is_set():
                 ans = self.ser.readline().decode("utf8")
-                print("Received answer: %s" % ans)
+                ans = str(ans).lstrip(chr(0)).strip()
+                print("Received answer: [%s], len = %i" % (ans, len(ans)))
+                if ans == "Hello":
+                    continue
+
                 match = self.restarted.match(ans)
                 if match != None:
                     print("Start received")
