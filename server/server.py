@@ -87,7 +87,7 @@ class Controller(object):
         for line in lines:
             frame = self.parser.parse(line)
             frames.append(frame)
-        self.machine.load(frames)
+        self.machine.Load(frames)
         self.__emit_message({"type":"loadlines", "lines":lines})
 
     def __print_state(self, message = ""):
@@ -111,16 +111,16 @@ class Controller(object):
             elif msg["type"] == "command":
                 if msg["command"] == "reset":
                     self.state = "init"
-                    self.machine.reset()
+                    self.machine.Reset()
                     self.__print_state()
                 elif msg["command"] == "start":
                     self.state = "running"
                     self.__print_state()
-                    self.machine.work_start()
+                    self.machine.WorkStart()
                 elif msg["command"] == "continue":
                     self.state = "running"
                     self.__print_state()
-                    self.machine.work_continue()
+                    self.machine.WorkContinue()
                 elif msg["command"] == "exit":
                     self.state = "exit"
                     self.__print_state()
@@ -131,13 +131,14 @@ class Controller(object):
                     self.state = "init"
                     self.__print_state("G-Code loaded")
                 elif msg["command"] == "stop":
-                    self.machine.work_stop()
+                    self.machine.WorkStop()
                     self.state = "init"
                     self.__print_state()
                 elif msg["command"] == "home":
                     self.state = "running"
                     self.__print_state()
-                    self.machine.homing(True, True, True)
+                    self.machine.MakeHoming(True, True, True)
+                    self.state = "stopped"
                 else:
                     pass
 

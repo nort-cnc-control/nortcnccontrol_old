@@ -570,22 +570,22 @@ class Machine(object):
             return
         self.line_selected(self.actions[i][0])
 
-    def load(self, frames):
+    def Load(self, frames):
         self.init()
         for frame in frames:
             self.__process(frame)
         self.__optimize()
 
-    def homing(self, x, y, z):
-        #if not self.stop:
-        #    raise Exception("Machine should be stopped")
-        #self.init()
-        #cmd = parser.GCmd("G28")
-        #self.__process(parser.GFrame([cmd]))
-        #self.work_start()
-        pass
- 
-    def work_continue(self):
+    def MakeHoming(self, x, y, z):
+        if not self.stop:
+            raise Exception("Machine should be stopped")
+        self.stop = False
+        act = actions.homing.ToBeginMovement(self.sender)
+        act.run()
+        act.completed.wait()
+        self.stop = True
+
+    def WorkContinue(self):
         self.stop = False
         self.running()
         if len(self.actions) == 0:
@@ -614,17 +614,17 @@ class Machine(object):
         self.stop = True
         return True
 
-    def work_start(self):
+    def WorkStart(self):
         self.work_init()
-        return self.work_continue()
+        return self.WorkContinue()
 
-    def reset(self):
+    def Reset(self):
         for (_, act) in self.actions:
             act.dispose()
         self.actions = []
         self.work_init()
 
-    def work_stop(self):
+    def WorkStop(self):
         self.work_init()
         self.stop = True
         self.finished()

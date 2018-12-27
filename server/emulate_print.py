@@ -19,7 +19,7 @@ class Controller(object):
 
     def continue_on_pause(self, reason):
         print(reason)
-        self.machine.work_continue()
+        self.machine.WorkContinue()
 
     def done(self):
         print("Done")
@@ -29,10 +29,10 @@ class Controller(object):
         for line in lines:
             frame = self.parser.parse(line)
             frames.append(frame)
-        self.machine.load(frames)
+        self.machine.Load(frames)
 
     def run(self):
-        self.machine.work_start()
+        self.machine.WorkStart()
 
 file = sys.argv[1]
 

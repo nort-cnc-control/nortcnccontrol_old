@@ -30,6 +30,7 @@ class Controller(object):
         self.control.start_clicked += self.__start
         self.control.continue_clicked += self.__continue
         self.control.stop_clicked += self.__stop
+        self.control.home_clicked += self.__home
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
 
         self.control.switch_to_initial_mode()
@@ -43,6 +44,9 @@ class Controller(object):
 
     def __continue(self):
         self.__send_command("continue")
+
+    def __home(self):
+        self.__send_command("home")
 
     def __start(self):
         self.__send_command("start")
