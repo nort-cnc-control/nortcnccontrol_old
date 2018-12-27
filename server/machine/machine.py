@@ -585,6 +585,15 @@ class Machine(object):
         act.completed.wait()
         self.stop = True
 
+    def MakeProbeZ(self):
+        if not self.stop:
+            raise Exception("Machine should be stopped")
+        self.stop = False
+        act = actions.homing.ProbeMovement(self.sender)
+        act.run()
+        act.completed.wait()
+        self.stop = True
+
     def WorkContinue(self):
         self.stop = False
         self.running()

@@ -138,7 +138,14 @@ class Controller(object):
                     self.state = "running"
                     self.__print_state()
                     self.machine.MakeHoming(True, True, True)
-                    self.state = "stopped"
+                    self.state = "init"
+                    self.__print_state()
+                elif msg["command"] == "probe":
+                    self.state = "running"
+                    self.__print_state()
+                    self.machine.MakeProbeZ()
+                    self.state = "init"
+                    self.__print_state()
                 else:
                     pass
 

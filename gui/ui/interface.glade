@@ -603,6 +603,7 @@
                   <object class="GtkButton" id="home_x">
                     <property name="label" translatable="yes">Home X</property>
                     <property name="visible">True</property>
+                    <property name="sensitive">False</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
                   </object>
@@ -616,6 +617,7 @@
                   <object class="GtkButton" id="home_y">
                     <property name="label" translatable="yes">Home Y</property>
                     <property name="visible">True</property>
+                    <property name="sensitive">False</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
                   </object>
@@ -629,6 +631,7 @@
                   <object class="GtkButton" id="home_z">
                     <property name="label" translatable="yes">Home Z</property>
                     <property name="visible">True</property>
+                    <property name="sensitive">False</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">True</property>
                   </object>
