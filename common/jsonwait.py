@@ -9,6 +9,7 @@ class JsonReceiver(object):
         self.buf = bytes()
 
     def __acquire_message(self):
+        print("acquiring")
         for i in range(1, len(self.buf) + 1):
             head = self.buf[:i]
             try:
@@ -25,7 +26,7 @@ class JsonReceiver(object):
             return msg
         while True:
             ser = self.sock.recv(1024)
-            if wait == False and (ser is None or len(ser) == 0):
+            if ser is None or len(ser) == 0:
                 return None
             self.buf += ser
             msg = self.__acquire_message()

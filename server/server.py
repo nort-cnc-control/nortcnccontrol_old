@@ -93,6 +93,10 @@ class Controller(object):
             while self.running:
                 print("Waiting command")
                 msg = self.msg_receiver.receive_message()
+                if msg is None:
+                    self.connection.close()
+                    break
+
                 print("Received: %s" % str(msg))
                 
                 if not ("type" in msg):
