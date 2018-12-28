@@ -124,11 +124,6 @@ class Controller(object):
         return True
 
     def run(self):
-        tmppath = self.sockpath + ".tmp"
-        if os.path.exists(tmppath):
-            os.remove(tmppath)
-        
-        self.sock.bind(tmppath)
         self.sock.connect(self.sockpath)
 
         self.msg_receiver = common.jsonwait.JsonReceiver(self.sock)
