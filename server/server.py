@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import common
+import common.jsonwait
+
 import sender
 import sender.emulatorsender
 import sender.serialsender
@@ -17,39 +20,22 @@ import json
 
 class Controller(object):
     def __emit_message(self, msg):
-        if self.clientaddr is None:
-            print("No client addr")
-            return
-        msg["source"] = "server"
-        ser = json.dumps(msg)
-        #print("sending: ", ser)
         try:
-            self.socket.sendto(bytes(ser, "utf-8"), self.clientaddr)
+            self.msg_sender.send_message(msg)
         except Exception as e:
             print(e)
-
-    def __wait_message(self):
-        while True:
-            ser, addr = self.socket.recvfrom(1024)
-            
-            if ser is None or len(ser) == 0:
-                continue
-            try:
-                msg = json.loads(ser)
-                if "source" in msg and msg["source"] == "server":
-                    continue
-                return msg, addr
-            except:
-                continue
-        assert(False)
 
     def __init__(self, sender, path):
         self.path = path
         if os.path.exists(path):
             os.remove(path)
         self.state = "init"
-        self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+        self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.socket.bind(path)
+        self.socket.listen(1)
+
+        self.msg_sender = None
+        self.msg_receiver = None
 
         self.running = False
         self.clientaddr = None
@@ -97,57 +83,60 @@ class Controller(object):
             "message" : message
         })
 
-    def run(self):    
+    def run(self):
         self.running = True
         while self.running:
-            msg, addr = self.__wait_message()
-            self.clientaddr = addr
+            self.connection,_ = self.socket.accept()
+            self.msg_receiver = common.jsonwait.JsonReceiver(self.connection)
+            self.msg_sender = common.jsonwait.JsonSender(self.connection)
+            while self.running:
+                msg = self.msg_receiver.receive_message()
 
-            #print("Received: %s" % str(msg))
-            if not ("type" in msg):
-                continue
-            if msg["type"] == "getstate":
-                self.__print_state()
-            elif msg["type"] == "command":
-                if msg["command"] == "reset":
-                    self.state = "init"
-                    self.machine.Reset()
+                #print("Received: %s" % str(msg))
+                if not ("type" in msg):
+                    continue
+                if msg["type"] == "getstate":
                     self.__print_state()
-                elif msg["command"] == "start":
-                    self.state = "running"
-                    self.__print_state()
-                    self.machine.WorkStart()
-                elif msg["command"] == "continue":
-                    self.state = "running"
-                    self.__print_state()
-                    self.machine.WorkContinue()
-                elif msg["command"] == "exit":
-                    self.state = "exit"
-                    self.__print_state()
-                    self.running = False
-                elif msg["command"] == "load":
-                    lines = msg["lines"]
-                    self.__load_lines(lines)
-                    self.state = "init"
-                    self.__print_state("G-Code loaded")
-                elif msg["command"] == "stop":
-                    self.machine.WorkStop()
-                    self.state = "init"
-                    self.__print_state()
-                elif msg["command"] == "home":
-                    self.state = "running"
-                    self.__print_state()
-                    self.machine.MakeHoming(True, True, True)
-                    self.state = "init"
-                    self.__print_state()
-                elif msg["command"] == "probe":
-                    self.state = "running"
-                    self.__print_state()
-                    self.machine.MakeProbeZ()
-                    self.state = "init"
-                    self.__print_state()
-                else:
-                    pass
+                elif msg["type"] == "command":
+                    if msg["command"] == "reset":
+                        self.state = "init"
+                        self.machine.Reset()
+                        self.__print_state()
+                    elif msg["command"] == "start":
+                        self.state = "running"
+                        self.__print_state()
+                        self.machine.WorkStart()
+                    elif msg["command"] == "continue":
+                        self.state = "running"
+                        self.__print_state()
+                        self.machine.WorkContinue()
+                    elif msg["command"] == "exit":
+                        self.state = "exit"
+                        self.__print_state()
+                        self.running = False
+                    elif msg["command"] == "load":
+                        lines = msg["lines"]
+                        self.__load_lines(lines)
+                        self.state = "init"
+                        self.__print_state("G-Code loaded")
+                    elif msg["command"] == "stop":
+                        self.machine.WorkStop()
+                        self.state = "init"
+                        self.__print_state()
+                    elif msg["command"] == "home":
+                        self.state = "running"
+                        self.__print_state()
+                        self.machine.MakeHoming(True, True, True)
+                        self.state = "init"
+                        self.__print_state()
+                    elif msg["command"] == "probe":
+                        self.state = "running"
+                        self.__print_state()
+                        self.machine.MakeProbeZ()
+                        self.state = "init"
+                        self.__print_state()
+                    else:
+                        pass
 
 port = "/dev/ttyUSB0"
 brate = 57600

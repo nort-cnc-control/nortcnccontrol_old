@@ -8,6 +8,9 @@ import os
 import socket
 import json
 
+import common
+import common.jsonwait
+
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib
@@ -32,16 +35,22 @@ class Controller(object):
         self.control.stop_clicked += self.__stop
         self.control.home_clicked += self.__home
         self.control.probe_clicked += self.__probe
-        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 
         self.control.switch_to_initial_mode()
 
     def __send_command(self, command):
-        r = {
+        msg = {
             "type" : "command",
             "command" : command,
         }
-        self.sock.send(bytes(json.dumps(r), "utf-8"))
+        ser = json.dumps(msg)
+        try:
+            self.sock.send(bytes(ser, "utf-8"))
+        except Exception as e:
+            print(e)
+
+    
 
     def __continue(self):
         self.__send_command("continue")
@@ -74,28 +83,26 @@ class Controller(object):
             "command" : "load",
             "lines" : cmds,
         }
-        self.sock.send(bytes(json.dumps(r), "utf-8"))
+        self.msg_sender.send_message(r)
 
     def __on_receive_event(self, sock, cond):
-        res = sock.recv(1024)
         try:
-            res = res.decode("utf-8")
-            data = json.loads(res)
-            type = data["type"]
+            msg = self.msg_receiver.receive_message()
+            type = msg["type"]
         except:
             return True
-        print(data)
+        print(msg)
         if type == "loadlines":
-            lines = data["lines"]
+            lines = msg["lines"]
             self.control.clear_commands()
             for line in lines:
                 self.control.add_command(line)
         elif type == "line":
-            line = data["line"]
+            line = msg["line"]
             self.control.select_line(line)
         elif type == "state":
-            state = data["state"]
-            message = data["message"]
+            state = msg["state"]
+            message = msg["message"]
             if state == "init":
                 self.control.switch_to_initial_mode()
             elif state == "running":
@@ -117,7 +124,10 @@ class Controller(object):
         
         self.sock.bind(tmppath)
         self.sock.connect(self.sockpath)
-        
+
+        self.msg_receiver = common.jsonwait.JsonReceiver(self.sock)
+        self.msg_sender = common.jsonwait.JsonSender(self.sock)
+
         GLib.io_add_watch(self.sock, GLib.IO_IN, self.__on_receive_event)
         self.__reset()
         self.control.run()
