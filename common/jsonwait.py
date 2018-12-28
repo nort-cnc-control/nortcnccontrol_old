@@ -9,7 +9,6 @@ class JsonReceiver(object):
         self.buf = bytes()
 
     def __acquire_message(self):
-        print("acquiring")
         for i in range(1, len(self.buf) + 1):
             head = self.buf[:i]
             try:

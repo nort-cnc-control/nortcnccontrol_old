@@ -25,6 +25,9 @@ class Interface(object):
         widget.queue_draw()
         return True
 
+    def __on_resize(self, widget, allocation, *args, **kwargs):
+        widget.queue_draw()
+
     def __init__(self):
         self.load_file       = event.EventEmitter()
         self.start_clicked    = event.EventEmitter()
@@ -38,8 +41,8 @@ class Interface(object):
         path = os.path.dirname(__file__)
         builder.add_from_file(path + "/interface.glade")
         self.window = builder.get_object("window")
-        self.window.show_all()
 
+        self.window.connect('size-allocate', self.__on_resize)
         self.window.connect('destroy', Gtk.main_quit)
 
         load_menu = builder.get_object("open")
@@ -91,6 +94,7 @@ class Interface(object):
         self.probe_btn.connect("clicked", self.__probe)
 
         self.clear_commands()
+        self.window.show_all()
 
     def __start_program(self, widget):
         self.start_clicked()
