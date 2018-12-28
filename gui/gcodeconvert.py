@@ -36,7 +36,7 @@ class Controller(object):
         self.control.home_clicked += self.__home
         self.control.probe_clicked += self.__probe
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-
+        self.sock.settimeout(0)
         self.control.switch_to_initial_mode()
 
     def __send_command(self, command):
@@ -85,13 +85,8 @@ class Controller(object):
         }
         self.msg_sender.send_message(r)
 
-    def __on_receive_event(self, sock, cond):
-        try:
-            msg = self.msg_receiver.receive_message()
-            type = msg["type"]
-        except:
-            return True
-        print(msg)
+    def __process_event(self, msg):
+        type = msg["type"]
         if type == "loadlines":
             lines = msg["lines"]
             self.control.clear_commands()
@@ -115,6 +110,17 @@ class Controller(object):
                 self.control.switch_to_initial_mode()
                 self.control.show_ok("Finished")
 
+    def __on_receive_event(self, sock, cond):
+        
+        while True:
+            try:
+                msg = self.msg_receiver.receive_message(wait=False)
+                if msg is None:
+                    return True
+            except:
+                return True
+            print(msg)
+            self.__process_event(msg)
         return True
 
     def run(self):

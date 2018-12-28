@@ -21,6 +21,7 @@ import json
 class Controller(object):
     def __emit_message(self, msg):
         try:
+            print("Emiting message %s" % str(msg))
             self.msg_sender.send_message(msg)
         except Exception as e:
             print(e)
@@ -90,9 +91,10 @@ class Controller(object):
             self.msg_receiver = common.jsonwait.JsonReceiver(self.connection)
             self.msg_sender = common.jsonwait.JsonSender(self.connection)
             while self.running:
+                print("Waiting command")
                 msg = self.msg_receiver.receive_message()
-
-                #print("Received: %s" % str(msg))
+                print("Received: %s" % str(msg))
+                
                 if not ("type" in msg):
                     continue
                 if msg["type"] == "getstate":
