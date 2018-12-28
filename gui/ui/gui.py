@@ -9,169 +9,228 @@ import gi
 import OpenGL
 import OpenGL.GL
 
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GLib
+import wx
+import wx.stc
 
-class Interface(object):    
 
-    def __render_path(self, widget, context, extradata):
-        context.make_current()
-        OpenGL.GL.glClearColor(0.1, 0.1, 0.1, 1.0)
-        OpenGL.GL.glClear(OpenGL.GL.GL_COLOR_BUFFER_BIT)
-        OpenGL.GL.glFlush()
-        return True
+class Interface(object):
 
-    def __resize(self, widget, width, height):
-        widget.queue_draw()
-        return True
+    class CNCWindow(wx.Frame):
 
-    def __on_resize(self, widget, allocation, *args, **kwargs):
-        widget.queue_draw()
+        def __start(self, arg):
+            self.start_clicked()
+
+        def __pause(self, arg):
+            self.pause_clicked()
+
+        def __continue(self, arg):
+            self.continue_clicked()
+
+        def __stop(self, arg):
+            self.stop_clicked()
+
+        def __home(self, arg):
+            self.home_clicked()
+
+        def __probe(self, arg):
+            self.probe_clicked()
+
+        def __init__(self, parent):
+            self.loaded = event.EventEmitter()
+            self.start_clicked = event.EventEmitter()
+            self.continue_clicked = event.EventEmitter()
+            self.pause_clicked = event.EventEmitter()
+            self.stop_clicked = event.EventEmitter()
+            self.home_clicked = event.EventEmitter()
+            self.probe_clicked = event.EventEmitter()
+
+            wx.Frame.__init__(self, parent, title="CNC Control", size=(800,600))
+            menubar = wx.MenuBar()
+            fileMenu = wx.Menu()
+            openItem = fileMenu.Append(wx.ID_OPEN, 'Open', 'Open G-Code')
+            quitItem = fileMenu.Append(wx.ID_EXIT, 'Quit', 'Quit application')
+            menubar.Append(fileMenu, '&File')
+            self.SetMenuBar(menubar)
+            self.Bind(wx.EVT_MENU, self.OnQuit, quitItem)
+            self.Bind(wx.EVT_MENU, self.OnOpen, openItem)
+
+            panel = wx.Panel(self)
+            hbox = wx.BoxSizer(wx.HORIZONTAL)
+            panel.SetSizer(hbox)
+
+            #region code area
+
+            code_panel = wx.Panel(panel)
+            hbox.Add(code_panel, wx.ID_ANY, wx.EXPAND, 0)
+            code_sizer = wx.BoxSizer(wx.VERTICAL)
+            code_panel.SetSizer(code_sizer)
+
+            #region code
+            self.code = wx.ListCtrl(code_panel, style=wx.LC_REPORT|wx.BORDER_SUNKEN)
+            self.code.InsertColumn(0, "", width=32)
+            self.code.InsertColumn(1, "", width=500)
+            self.font = wx.Font(13, wx.MODERN, wx.NORMAL, wx.NORMAL, False, u'Monospace')
+            self.old_hl = None
+            code_sizer.Add(self.code, wx.ID_ANY, flag=wx.EXPAND)
+            #endregion
+
+            code_sizer.Add((-1, 5))
+
+            #region command
+            cmdpanel = wx.Panel(code_panel)
+            cmdpanel_sizer = wx.BoxSizer(wx.HORIZONTAL)
+            cmdpanel.SetSizer(cmdpanel_sizer)
+            code_sizer.Add(cmdpanel, flag=wx.EXPAND)
+
+            self.command = wx.TextCtrl(cmdpanel)
+            cmdpanel_sizer.Add(self.command, wx.ID_ANY, flag=wx.EXPAND)
+
+            self.send_command = wx.Button(cmdpanel, label='>', size=(32, -1))
+            cmdpanel_sizer.Add(self.send_command)
+            #endregion
+
+            #endregion
+
+            #region control area
+            control_panel = wx.Panel(panel)
+            control_sizer = wx.BoxSizer(wx.VERTICAL)
+            control_panel.SetSizer(control_sizer)
+
+            hbox.Add(control_panel, flag=wx.LEFT|wx.RIGHT, border=15)
+
+            #region buttons
+            button_panel = wx.Panel(control_panel)
+            btnsizer = wx.BoxSizer(wx.VERTICAL)
+            control_sizer.Add(button_panel)
+            button_panel.SetSizer(btnsizer)
+
+            self.start_btn = wx.Button(button_panel, label='Start')
+            btnsizer.Add(self.start_btn)
+            self.start_btn.Bind(wx.EVT_BUTTON, self.__start)
+
+            btnsizer.Add((-1, 5))
+
+            self.pause_btn = wx.Button(button_panel, label='Pause')
+            btnsizer.Add(self.pause_btn)
+            self.pause_btn.Bind(wx.EVT_BUTTON, self.__pause)
+
+            btnsizer.Add((-1, 5))
+
+            self.continue_btn = wx.Button(button_panel, label='Continue')
+            btnsizer.Add(self.continue_btn)
+            self.continue_btn.Bind(wx.EVT_BUTTON, self.__continue)
+
+            btnsizer.Add((-1, 5))
+
+            self.stop_btn = wx.Button(button_panel, label='Stop')
+            btnsizer.Add(self.stop_btn)
+            self.stop_btn.Bind(wx.EVT_BUTTON, self.__stop)
+
+            btnsizer.Add((-1, 20))
+
+            self.home_btn = wx.Button(button_panel, label='Home XYZ')
+            btnsizer.Add(self.home_btn)
+            self.home_btn.Bind(wx.EVT_BUTTON, self.__home)
+
+            btnsizer.Add((-1, 5))
+
+            self.probe_btn = wx.Button(button_panel, label='Probe Z')
+            btnsizer.Add(self.probe_btn)
+            self.probe_btn.Bind(wx.EVT_BUTTON, self.__probe)
+            #endregion
+
+            control_sizer.Add((-1, 15))
+
+            #region status region
+            status_panel = wx.Panel(control_panel)
+            status_sizer = wx.BoxSizer(wx.VERTICAL)
+            control_sizer.Add(status_panel)
+            status_panel.SetSizer(status_sizer)
+            #endregion
+
+            #endregion
+
+        def ClearCode(self):
+            self.code.DeleteAllItems()
+
+        def AddCode(self, line):
+            id = self.code.GetItemCount()
+            self.code.InsertItem(id, str(id+1))
+            self.code.SetItem(id, 1, line)
+            self.code.SetItemFont(id, self.font)
+            return id
+
+        def HighLightLine(self, id):
+            if self.old_hl != None and self.old_hl < self.code.GetItemCount():
+                self.code.SetItemBackgroundColour(self.old_hl, wx.WHITE)
+            self.code.SetItemBackgroundColour(id, wx.LIGHT_GREY)
+            self.old_hl = id
+
+
+        def OnOpen(self, e):
+            with wx.FileDialog(self, "Open G-Code", wildcard="GCODE files (*.gcode)|*.gcode|All files|*", \
+                       style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as ofd:
+                if ofd.ShowModal() == wx.ID_CANCEL:
+                    return
+                file = ofd.Paths[0]
+                self.loaded(file)
+
+        def OnQuit(self, e):
+            self.Close()
+
 
     def __init__(self):
-        self.load_file       = event.EventEmitter()
-        self.start_clicked    = event.EventEmitter()
-        self.continue_clicked = event.EventEmitter()
-        self.pause_clicked    = event.EventEmitter()
-        self.stop_clicked     = event.EventEmitter()
-        self.home_clicked     = event.EventEmitter()
-        self.probe_clicked    = event.EventEmitter()
+        self.app = wx.App()
+        self.window = self.CNCWindow(None)
 
-        builder = Gtk.Builder()
-        path = os.path.dirname(__file__)
-        builder.add_from_file(path + "/interface.glade")
-        self.window = builder.get_object("window")
+        self.load_file = self.window.loaded
+        self.start_clicked = self.window.start_clicked
+        self.continue_clicked = self.window.continue_clicked
+        self.pause_clicked = self.window.pause_clicked
+        self.stop_clicked = self.window.stop_clicked
+        self.home_clicked = self.window.home_clicked
+        self.probe_clicked = self.window.probe_clicked
 
-        self.window.connect('size-allocate', self.__on_resize)
-        self.window.connect('destroy', Gtk.main_quit)
-
-        load_menu = builder.get_object("open")
-        load_menu.connect('activate', self.__load_menu_event)
-
-        self.ffilter = Gtk.FileFilter()
-        self.ffilter.set_name("G-Code")
-        self.ffilter.add_pattern("*.gcode")
-        self.affilter = Gtk.FileFilter()
-        self.affilter.set_name("All files")
-        self.affilter.add_pattern("*")
-
-        self.glarea = builder.get_object("model")
-        self.glarea.connect('render', self.__render_path, None)
-        self.glarea.connect('resize', self.__resize)
-
-        #region code area
-        self.gstore = builder.get_object("gcodeline")
-        self.gcodeview = builder.get_object("gcode")
-
-        renderer = Gtk.CellRendererText()
-        renderer.set_padding(0, 0)
-        renderer.set_property("font", "Monospace")
-        renderer.set_fixed_height_from_font(1)
-
-        linecolumn = Gtk.TreeViewColumn("Line", renderer, text=0)
-        self.gcodeview.append_column(linecolumn)
-        codecolumn = Gtk.TreeViewColumn("Code", renderer, text=1)
-        self.gcodeview.append_column(codecolumn)
-
-        #endregion code area
-
-        self.pause_btn = builder.get_object("pause")
-        self.pause_btn.connect("clicked", self.__pause_program)
-
-        self.start_btn = builder.get_object("start")
-        self.start_btn.connect("clicked", self.__start_program)
-
-        self.continue_btn = builder.get_object("continue")
-        self.continue_btn.connect("clicked", self.__continue_program)
-
-        self.stop_btn = builder.get_object("stop")
-        self.stop_btn.connect("clicked", self.__stop_program)
-
-        self.home_btn = builder.get_object("home")
-        self.home_btn.connect("clicked", self.__home_all)
-
-        self.probe_btn = builder.get_object("probe_z")
-        self.probe_btn.connect("clicked", self.__probe)
-
+        self.window.Show(True)
         self.clear_commands()
         self.window.show_all()
 
-    def __start_program(self, widget):
-        self.start_clicked()
-    
-    def __continue_program(self, widget):
-        self.continue_clicked()
-
-    def __stop_program(self, widget):
-        self.stop_clicked()
-    
-    def __pause_program(self, widget):
-        self.pause_clicked()
-
-    def __home_all(self, widget):
-        self.home_clicked()
-
-    def __probe(self, widget):
-        self.probe_clicked()
-
-    def __load_menu_event(self, widget):
-        dialog = Gtk.FileChooserDialog("Please choose a g-code", self.window,
-                                       Gtk.FileChooserAction.OPEN,
-                                       (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
-                                        Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
-        dialog.add_filter(self.ffilter)
-        dialog.add_filter(self.affilter)
-        response = dialog.run()
-        if response == Gtk.ResponseType.OK:
-            self.load_file(dialog.get_filename())
-        dialog.destroy()
-        return True
-    
     def clear_commands(self):
-        self.gstore.clear()
-        self.id = 1
+        self.id = 0
+        self.window.ClearCode()
 
     def add_command(self, line):
-        line = line.strip()
-        self.gstore.append([self.id, line])
-        self.id += 1
+        self.id = self.window.AddCode(line)
 
     def show_ok(self, text):
-        dialog = Gtk.MessageDialog(self.window, 0, Gtk.MessageType.INFO,
-            Gtk.ButtonsType.OK, "OK")
-        dialog.format_secondary_text(text)
-        dialog.run()
-        dialog.destroy()
+        wx.MessageBox(text, 'Message', wx.OK | wx.ICON_INFORMATION)
 
     def select_line(self, line):
-        path = Gtk.TreePath(line)
-        selection = self.gcodeview.get_selection()
-        selection.select_path(path)
+        self.window.HighLightLine(line)
 
     def switch_to_initial_mode(self):
-        self.start_btn.set_sensitive(True)
-        self.continue_btn.set_sensitive(False)
-        self.stop_btn.set_sensitive(False)
-        self.pause_btn.set_sensitive(False)
-        self.home_btn.set_sensitive(True)
-        self.probe_btn.set_sensitive(True)
+        self.window.start_btn.Enable()
+        self.window.continue_btn.Disable()
+        self.window.stop_btn.Disable()
+        self.window.pause_btn.Disable()
+        self.window.home_btn.Enable()
+        self.window.probe_btn.Enable()
 
     def switch_to_paused_mode(self):
-        self.start_btn.set_sensitive(False)
-        self.continue_btn.set_sensitive(True)
-        self.stop_btn.set_sensitive(True)
-        self.pause_btn.set_sensitive(False)
-        self.home_btn.set_sensitive(False)
-        self.probe_btn.set_sensitive(False)
+        self.window.start_btn.Disable()
+        self.window.continue_btn.Enable()
+        self.window.stop_btn.Enable()
+        self.window.pause_btn.Disable()
+        self.window.home_btn.Disable()
+        self.window.probe_btn.Disable()
 
     def switch_to_running_mode(self):
-        self.start_btn.set_sensitive(False)
-        self.continue_btn.set_sensitive(False)
-        self.stop_btn.set_sensitive(True)
-        self.pause_btn.set_sensitive(True)
-        self.home_btn.set_sensitive(False)
-        self.probe_btn.set_sensitive(False)
+        self.window.start_btn.Disable()
+        self.window.continue_btn.Disable()
+        self.window.stop_btn.Enable()
+        self.window.pause_btn.Enable()
+        self.window.home_btn.Disable()
+        self.window.probe_btn.Disable()
 
     def run(self):
-        Gtk.main()
-
+        self.app.MainLoop()
