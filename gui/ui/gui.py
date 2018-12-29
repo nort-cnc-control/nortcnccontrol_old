@@ -193,7 +193,6 @@ class Interface(object):
 
         self.window.Show(True)
         self.clear_commands()
-        self.window.show_all()
 
     def clear_commands(self):
         self.id = 0
