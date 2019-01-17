@@ -26,8 +26,8 @@ class HelixMovement(action.Movement):
             dir_cmd = "G19 "
 
         feed_cmd = "F%iP%iL%iT%i " % (self.feed, self.feed0+0.5, self.feed1+0.5, self.acceleration)
-        delta_cmd = "X%.2fY%.2fZ%.2f" % (self.delta.x, self.delta.y, self.delta.z)
-        center_cmd = "I%.2fJ%.2f " % (self.center.x, self.center.y)
+        delta_cmd = "X%.2fY%.2fZ%.2f " % (self.delta.x, self.delta.y, self.delta.z)
+        center_cmd = "D%.2f " % (self.hcl)
 
         code = type_cmd + feed_cmd + center_cmd + dir_cmd + delta_cmd
         return code
@@ -45,6 +45,7 @@ class HelixMovement(action.Movement):
 
         if (ccw is False and r > 0) or (ccw is True and r < 0):
             # Clock wise or ccw with angle > 180
+            hcl = q
             c = euclid3.Vector2(d.x/2 + d.y/D * q, d.y/2 - d.x/D * q)
             if r > 0:
                 p0 = euclid3.Vector2(-c.y, c.x)
@@ -54,6 +55,7 @@ class HelixMovement(action.Movement):
                 p1 = euclid3.Vector2((c.y - d.y), -(c.x - d.x))
         else:
             # Counter clock wise or cw with angle > 180
+            hcl = -q
             c = euclid3.Vector2(d.x/2 - d.y/D * q, d.y/2 + d.x/D * q)
             if r > 0:
                 p0 = euclid3.Vector2(c.y, -c.x)
@@ -70,7 +72,7 @@ class HelixMovement(action.Movement):
         if r < 0:
             angle = 2*math.pi - angle
 
-        return c, angle, p0, p1
+        return c, hcl, angle, p0, p1
 
     def __init__(self, delta, r, axis, ccw, feed, acc, **kwargs):
         action.Movement.__init__(self, feed=feed, acc=acc, **kwargs)
@@ -94,7 +96,7 @@ class HelixMovement(action.Movement):
         # angle - angle of arc
         # p0    - tangent at begin
         # p1    - tangent at end
-        self.center, angle, p0, p1 = self.__find_geometry_r(d, r, ccw)
+        self.center, self.hcl, angle, p0, p1 = self.__find_geometry_r(d, r, ccw)
 
         l = abs(r) * angle
         tan = h / l
