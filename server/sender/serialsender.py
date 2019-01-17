@@ -19,6 +19,7 @@ class SerialSender(object):
             self.restarted = re.compile(r"started N:([0-9]+) Q:([0-9]+).*")
             self.requeued = re.compile(r"queued N:([0-9]+) Q:([0-9]+).*")
             self.reerror = re.compile(r"error N:([0-9]+).*")
+            self.redebug = re.compile(r"debug.*")
             self.ev_completed = ev_completed
             self.ev_started = ev_started
             self.ev_slots = ev_slots
@@ -58,6 +59,10 @@ class SerialSender(object):
                 match = self.reerror.match(ans)
                 if match != None:
                     Nid = match.group(1)
+                    continue
+
+                match = self.redebug.match(ans)
+                if match != None:
                     continue
 
                 print("Unknown answer from MCU: %s" % ans)

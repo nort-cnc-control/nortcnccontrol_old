@@ -39,7 +39,7 @@ class HelixMovement(action.Movement):
         if D == 0:
             raise Exception("Line movement")
 
-        if r < D / 2:
+        if abs(r) < D / 2:
             raise Exception("Too small radius")
         q = (r**2 - (D/2)**2)**0.5
 
