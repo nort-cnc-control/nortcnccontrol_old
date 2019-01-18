@@ -194,6 +194,7 @@ class Machine(object):
         R = None
         I = None
         J = None
+        K = None
 
         def __init__(self, frame):
             for cmd in frame.commands:
@@ -224,6 +225,10 @@ class Machine(object):
                     if self.J != None:
                         raise Exception("J meets 2 times")
                     self.J = cmd.value
+                elif cmd.type == "K":
+                    if self.K != None:
+                        raise Exception("K meets 2 times")
+                    self.K = cmd.value
 
     class Feed(object):
 
@@ -374,9 +379,8 @@ class Machine(object):
             axis = helix.HelixMovement.Axis.zx
         return axis
 
-    def __insert_arc(self, delta, R, exact_stop):
+    def __insert_arc_R(self, delta, R, exact_stop):
         ccw = self.state.motion == self.PositioningState.MotionGroup.round_ccw
-        plane = self.state.plane
         axis = self.__axis_convert(self.state.plane)
         movement = helix.HelixMovement(delta, feed=self.state.feed, r=R,
                                        axis=axis, ccw=ccw,
@@ -384,6 +388,17 @@ class Machine(object):
                                        exact_stop=exact_stop,
                                        sender=self.sender)
         self.__add_action(self.index, movement)
+
+    def __insert_arc_IJK(self, delta, I, J, K, exact_stop):
+        ccw = self.state.motion == self.PositioningState.MotionGroup.round_ccw
+        axis = self.__axis_convert(self.state.plane)
+        movement = helix.HelixMovement(delta, feed=self.state.feed, i=I, j=J, k=K,
+                                       axis=axis, ccw=ccw,
+                                       acc=self.state.acc,
+                                       exact_stop=exact_stop,
+                                       sender=self.sender)
+        self.__add_action(self.index, movement)
+
 
     def __insert_move(self, pos, exact_stop):
         delta = self.__find_delta(pos)
@@ -399,7 +414,19 @@ class Machine(object):
         # Arc movement
         elif self.state.motion == self.PositioningState.MotionGroup.round_cw or \
              self.state.motion == self.PositioningState.MotionGroup.round_ccw:
-            self.__insert_arc(delta, pos.R, exact_stop)
+            if pos.R != None:
+                self.__insert_arc_R(delta, pos.R, exact_stop)
+            else:
+                ci = 0
+                cj = 0
+                ck = 0
+                if pos.I != None:
+                    ci = pos.I
+                if pos.J != None:
+                    cj = pos.J
+                if pos.K != None:
+                    ck = pos.K
+                self.__insert_arc_IJK(delta, ci, cj, ck, exact_stop)
 
         else:
             raise Exception("Not implemented %s motion state" % self.state.motion)

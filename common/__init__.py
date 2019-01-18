@@ -1,1 +1,1 @@
-all = ["event"]
+all = ["event", "config"]
