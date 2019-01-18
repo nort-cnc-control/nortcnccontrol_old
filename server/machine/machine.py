@@ -547,6 +547,8 @@ class Machine(object):
             if prevmove != None and prevmove.exact_stop != True:
                 cosa = curdir.x * prevdir.x + curdir.y * prevdir.y + curdir.z * prevdir.z
                 if cosa > 0:
+                    if cosa < 1 + 1e-4 and cosa >= 1:
+                        cosa = 1
                     sina = math.sqrt(1-cosa**2)
                     if sina < 1e-3:
                         # The same direction

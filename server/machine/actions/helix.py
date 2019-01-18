@@ -80,7 +80,7 @@ class HelixMovement(action.Movement):
         right = self.__right_ortogonal(d)
         center = euclid3.Vector2(d.x/2 + right.x * horde_center_distance,
                                  d.y/2 + right.y * horde_center_distance)
-        print(center)
+        #print(center)
         p0, p1 = self.__ps_from_cdr(center, d, r, center_side)
 
         cosa = 1 - d.magnitude_squared() / (2 * r**2)
@@ -101,7 +101,7 @@ class HelixMovement(action.Movement):
         r = (r1 + r2)/2
         
         right = self.__right_ortogonal(d)
-        print(right)
+        #print(right)
         if right.x * center.x + right.y * center.y > 0:
             center_side = 1
         else:
