@@ -17,7 +17,9 @@ from .actions import pause
 from .actions import tools
 from .actions import program
 
+import common
 from common import event
+from common import config
 import threading
 
 # Supported codes
@@ -92,10 +94,11 @@ class Machine(object):
             offset_6  = 59
 
         def __init__(self):
-            self.feed = 5
-            self.fastfeed = 1200
-            self.acc = 50
-            self.jerk = 20
+            self.feed = common.config.DEFAULT_FEED
+            self.fastfeed = common.config.FASTFEED
+            self.acc = common.config.ACCELERATION
+            self.jerk = common.config.JERKING
+
             self.pos = euclid3.Vector3()
 
             self.motion       = self.MotionGroup.fast_move
