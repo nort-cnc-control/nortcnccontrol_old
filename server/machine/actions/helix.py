@@ -129,7 +129,6 @@ class HelixMovement(action.Movement):
     def __init__(self, delta, axis, ccw, feed, acc, **kwargs):
         action.Movement.__init__(self, feed=feed, acc=acc, **kwargs)
         self.axis = axis
-        self.ccw = ccw
         self.delta = delta
         self.gcode = None
         d, h = self.__get_d_h(delta, axis)
@@ -145,13 +144,18 @@ class HelixMovement(action.Movement):
         else:
             self.plane_is_left = not common.config.ZX_RIGHT
         
+        if not self.plane_is_left:
+            self.ccw = ccw
+        else:
+            self.ccw = not ccw
+
         if "r" in kwargs.keys():
             self.r = kwargs["r"]
             # center - center of circle
             # angle  - angle of arc
             # p0     - tangent at begin
             # p1     - tangent at end
-            self.center, self.hcl, angle, p0, p1 = self.__find_geometry_from_r(d, self.r, ccw)
+            self.center, self.hcl, angle, p0, p1 = self.__find_geometry_from_r(d, self.r, self.ccw)
         else:
             ci = kwargs["i"]
             cj = kwargs["j"]
@@ -166,7 +170,7 @@ class HelixMovement(action.Movement):
             # angle - angle of arc
             # p0    - tangent at begin
             # p1    - tangent at end
-            self.r, self.hcl, angle, p0, p1 = self.__find_geometry_from_ijk(d, self.center, ccw)
+            self.r, self.hcl, angle, p0, p1 = self.__find_geometry_from_ijk(d, self.center, self.ccw)
 
         l = abs(self.r) * angle
         self.__set_tan(axis, p0, p1, h, l)
