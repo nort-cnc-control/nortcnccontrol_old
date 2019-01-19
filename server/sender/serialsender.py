@@ -40,7 +40,7 @@ class SerialSender(object):
                     Nid = match.group(1)
                     self.ev_started(Nid)
                     Q = int(match.group(2))
-                    self.ev_slots(Q)
+                    self.ev_slots(Nid, Q)
                     continue
 
                 match = self.recompleted.match(ans)
@@ -49,13 +49,14 @@ class SerialSender(object):
                     Nid = match.group(1)
                     self.ev_completed(Nid)
                     Q = int(match.group(2))
-                    self.ev_slots(Q)
+                    self.ev_slots(Nid, Q)
                     continue
 
                 match = self.requeued.match(ans)
                 if match != None:
+                    Nid = match.group(1)
                     Q = int(match.group(2))
-                    self.ev_slots(Q)
+                    self.ev_slots(Nid, Q)
                     continue
 
                 match = self.redropped.match(ans)
@@ -63,7 +64,7 @@ class SerialSender(object):
                     Q = int(match.group(2))
                     Nid = match.group(1)
                     self.ev_dropped(Nid)
-                    self.ev_slots(Q)
+                    self.ev_slots(Nid, Q)
                     continue
 
                 match = self.reerror.match(ans)
@@ -99,11 +100,14 @@ class SerialSender(object):
         self.__listener.start()
         self.has_slots.set()
 
-    def __on_slots(self, Q):
+    def __on_slots(self, Nid, Q):
+        Nid = int(Nid)
         if Q == 0:
             self.has_slots.clear()
         else:
             self.has_slots.set()
+        if Nid != self.__id:
+            return
         self.__qans.set()
 
     def send_command(self, command):
@@ -114,8 +118,8 @@ class SerialSender(object):
         self.__ser.write(bytes(cmd, "UTF-8"))
         self.__ser.flush()
         oid = self.__id
-        self.__id += 1
         self.__qans.wait()
+        self.__id += 1
         return oid
 
     def close(self):
