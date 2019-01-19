@@ -634,12 +634,14 @@ class Machine(object):
             return True
         action = None
         while self.iter < len(self.actions):
-            prevframe = action
             action = self.actions[self.iter][1]
-            if not action.caching and prevframe != None:
-                # we should wait until previous action is completed
-                # prevframe.completed.wait()
-                prevframe.completed.wait()
+            if not action.caching:
+                # we should wait until previous actions are ready
+                for i in range(self.iter):
+                    prevframe = self.actions[i][1]
+                    print("waiting for previous frame: %i" % prevframe.Nid)
+                    prevframe.ready.wait()
+                print("previous frames are ready")
 
             self.sender.has_slots.wait()
             cont = action.run()

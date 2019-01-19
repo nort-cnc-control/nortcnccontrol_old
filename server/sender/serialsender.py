@@ -11,18 +11,20 @@ class SerialSender(object):
 
     class SerialReceiver(threading.Thread):
 
-        def __init__(self, ser, finish_event, ev_completed, ev_started, ev_slots):
+        def __init__(self, ser, finish_event, ev_completed, ev_started, ev_slots, ev_dropped):
             threading.Thread.__init__(self)
             self.ser = ser
             self.finish_event = finish_event
             self.recompleted = re.compile(r"completed N:([0-9]+) Q:([0-9]+).*")
             self.restarted = re.compile(r"started N:([0-9]+) Q:([0-9]+).*")
             self.requeued = re.compile(r"queued N:([0-9]+) Q:([0-9]+).*")
-            self.reerror = re.compile(r"error N:([0-9]+).*")
+            self.redropped = re.compile(r"dropped N:([0-9]+) Q:([0-9]+).*")
+            self.reerror = re.compile(r"error.*")
             self.redebug = re.compile(r"debug.*")
             self.ev_completed = ev_completed
             self.ev_started = ev_started
             self.ev_slots = ev_slots
+            self.ev_dropped = ev_dropped
 
         def run(self):
             while not self.finish_event.is_set():
@@ -56,9 +58,16 @@ class SerialSender(object):
                     self.ev_slots(Q)
                     continue
 
+                match = self.redropped.match(ans)
+                if match != None:
+                    Q = int(match.group(2))
+                    Nid = match.group(1)
+                    self.ev_dropped(Nid)
+                    self.ev_slots(Q)
+                    continue
+
                 match = self.reerror.match(ans)
                 if match != None:
-                    Nid = match.group(1)
                     continue
 
                 match = self.redebug.match(ans)
@@ -69,6 +78,7 @@ class SerialSender(object):
 
     queued = event.EventEmitter()
     completed = event.EventEmitter()
+    dropped = event.EventEmitter()
     started = event.EventEmitter()
     has_slots = threading.Event()
     
@@ -83,7 +93,7 @@ class SerialSender(object):
         self.__ser = serial.Serial(self.port, self.baudrate,
                                  bytesize=8, parity='N', stopbits=1)
         self.__listener = self.SerialReceiver(self.__ser, self.__finish_event,
-                                              self.completed, self.started, self.__slots)
+                                              self.completed, self.started, self.__slots, self.dropped)
         
         self.__slots += self.__on_slots
         self.__listener.start()
@@ -98,7 +108,7 @@ class SerialSender(object):
 
     def send_command(self, command):
         self.__qans.clear()
-        cmd = ("N%i" % self.__id) + command + "\n"
+        cmd = ("N%i " % self.__id) + command + "\n"
         print("Sending command %s" % cmd)
         self.queued(self.__id)
         self.__ser.write(bytes(cmd, "UTF-8"))

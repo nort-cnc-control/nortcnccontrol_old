@@ -6,6 +6,7 @@ class EmulatorSender(object):
     queued = event.EventEmitter()
     completed = event.EventEmitter()
     started = event.EventEmitter()
+    dropped = event.EventEmitter()
     
     has_slots = threading.Event()
 

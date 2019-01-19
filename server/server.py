@@ -2,6 +2,7 @@
 
 import common
 import common.jsonwait
+import common.config
 
 import sender
 import sender.emulatorsender
@@ -145,7 +146,7 @@ class Controller(object):
                         pass
 
 port = "/dev/ttyUSB0"
-brate = 57600
+brate = common.config.BAUDRATE
 emulate = False
 
 try:
