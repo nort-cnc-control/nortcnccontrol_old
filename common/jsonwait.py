@@ -12,19 +12,18 @@ class JsonReceiver(object):
 
     def __acquire_msg(self):
         try:
-            print("buf0 = ", self.buf)
+            #print("\n\nbuf0 = ", self.buf)
             start = self.buf.find(b"\x00")
             if start < 0:
                 return None
-            self.buf = self.buf[start + 1:]
-            print("buf1 = ", self.buf)
             end = self.buf.find(b"\xFF")
             if end < 0:
                 return None
-            msgbuf = self.buf[:end]
-            print("msgbuf = ", msgbuf)
+            msgbuf = self.buf[start + 1:end]
+            #print("msgbuf = ", msgbuf)
             msg = json.loads(msgbuf)
             self.buf = self.buf[end + 1:]
+            #print("Received: ", msg)
             return msg
         except:
             return None
@@ -54,5 +53,5 @@ class JsonSender(object):
         msg += b"\x00"
         msg += ser
         msg += b"\xFF"
-        print("Sending: ", msg)
+        #print("Sending: ", ser)
         self.sock.send(msg)
