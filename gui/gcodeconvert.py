@@ -44,13 +44,7 @@ class Controller(object):
             "type" : "command",
             "command" : command,
         }
-        ser = json.dumps(msg)
-        try:
-            self.sock.send(bytes(ser, "utf-8"))
-        except Exception as e:
-            print(e)
-
-    
+        self.msg_sender.send_message(msg)
 
     def __continue(self):
         self.__send_command("continue")
