@@ -44,9 +44,9 @@ class Spindel_N700E(object):
     def stop(self):
         self.__write_register(self.__run_register, self.__run_stop)
 
-client = Spindel_N700E("/dev/ttyUSB1", 1)
-client.set_speed(50)
-client.start_reverse()
-client.stop()
-client.close()
+#client = Spindel_N700E("/dev/ttyUSB1", 1)
+#client.set_speed(50)
+#client.start_reverse()
+#client.stop()
+#client.close()
 
