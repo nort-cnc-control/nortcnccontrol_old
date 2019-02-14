@@ -12,12 +12,3 @@ class WaitTool(action.InstantAction):
     def perform(self):
         self.tool_changed(self.tool)
         return False
-
-class SetSpeed(action.MCUAction):
-
-    def __init__(self, speed, **kwargs):
-        action.MCUAction.__init__(self, **kwargs)
-        self.speed = speed
-
-    def emit_command(self):
-        return "S%i" % self.speed

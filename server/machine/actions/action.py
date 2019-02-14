@@ -41,6 +41,28 @@ class InstantAction(Action):
         self.action_completed(self)
         return res
 
+# Actions, which generates commands for Tool
+
+class ToolAction(Action):
+
+    def __init__(self, **kwargs):
+        Action.__init__(self, **kwargs)
+        self.caching = False
+        self.sender = None
+        self.Nid = -1
+
+    @abc.abstractmethod
+    def perform(self):
+        return False
+
+    def act(self):
+        self.action_started(self)
+        res = self.perform()
+        self.completed.set()
+        self.ready.set()
+        self.action_completed(self)
+        return res
+
 # Actions, which generates commands for MCU
 class MCUAction(Action):
 

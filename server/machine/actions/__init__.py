@@ -1,1 +1,1 @@
-all=["action", "helix", "homing", "linear", "pause", "program", "tools"]
+all=["action", "helix", "homing", "linear", "pause", "program", "tools", "spindle"]

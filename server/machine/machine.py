@@ -15,6 +15,7 @@ from .actions import helix
 from .actions import action
 from .actions import pause
 from .actions import tools
+from .actions import spindle
 from .actions import program
 
 import common
@@ -441,11 +442,25 @@ class Machine(object):
     def __insert_homing(self, frame):
         self.__add_action(self.index, homing.ToBeginMovement(sender=self.sender))
 
-    def __insert_set_speed(self, speed):
-        self.toolstate.speed = speed
-        self.__add_action(self.index, tools.SetSpeed(speed, sender=self.sender))
     #endregion Add MCU actions to queue
 
+    #region Spindle actions
+    def __insert_set_speed(self, speed):
+        self.toolstate.speed = speed
+        self.__add_action(self.index, spindle.SpindleSetSpeed(speed))
+    
+    def __insert_spindle_on(self, cw):
+        if cw:
+            self.toolstate.spindle = self.toolstate.spindle.spindle_cw
+        else:
+            self.toolstate.spindle = self.toolstate.spindle.spindle_ccw
+        self.__add_action(self.index, spindle.SpindleOn(self.toolstate.speed, cw))
+
+    def __insert_spindle_off(self):
+        self.toolstate.spindle = self.toolstate.spindle.spindle_stop
+        self.__add_action(self.index, spindle.SpindleOff())
+
+    #endregion Tool actions
 
     #region Add UI action 
 
@@ -485,6 +500,9 @@ class Machine(object):
     #region Processing frame
     def __process_begin(self, frame):
         self.toolstate.process_begin(frame)
+        speed = self.SpindleSpeed(frame)
+        if speed.speed != None:
+            self.__insert_set_speed(speed.speed)
 
     def __process_move(self, frame):
         self.state.process_frame(frame)
@@ -492,15 +510,11 @@ class Machine(object):
         feed = self.Feed(frame)
         stop = self.ExactStop(frame)
         tool = self.Tool(frame)
-        speed = self.SpindleSpeed(frame)
-
+        
         for cmd in frame.commands:
             if cmd.type == "G":
                 if cmd.value == 28:
                     self.__insert_homing(frame)
-
-        if speed.speed != None:
-            self.__insert_set_speed(speed.speed)
 
         if tool.tool != None:
             self.__insert_select_tool(tool.tool)
