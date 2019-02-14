@@ -7,6 +7,8 @@ import common.config
 import sender
 import sender.emulatorsender
 import sender.serialsender
+import sender.spindelemulator
+import sender.n700e
 
 import machine
 import machine.machine
@@ -27,7 +29,7 @@ class Controller(object):
         except Exception as e:
             print(e)
 
-    def __init__(self, sender, path):
+    def __init__(self, table_sender, spindel_sender, path):
         self.path = path
         if os.path.exists(path):
             os.remove(path)
@@ -42,8 +44,9 @@ class Controller(object):
         self.running = False
         self.clientaddr = None
 
-        self.sender = sender
-        self.machine = machine.machine.Machine(self.sender)
+        self.table_sender = table_sender
+        self.spindel_sender = spindel_sender
+        self.machine = machine.machine.Machine(self.table_sender, self.spindel_sender)
         self.parser = machine.parser.GLineParser()
         self.machine.paused += self.__continue_on_pause
         self.machine.finished += self.__done
@@ -147,6 +150,8 @@ class Controller(object):
 
 port = "/dev/ttyUSB0"
 brate = common.config.BAUDRATE
+port_485 = "/dev/ttyUSB1"
+n700e_id = 1
 emulate = False
 
 try:
@@ -161,6 +166,8 @@ for o, a in opts:
         emulate = True
     elif o in ("-p", "--port"):
         port = a
+    elif o in ("-r", "--rs485"):
+        port_485 = a
     elif o in ("-b", "--baudrate"):
         brate = int(a)
     else:
@@ -169,9 +176,11 @@ for o, a in opts:
 
 if emulate:
     print("Emulate")
-    sender = sender.emulatorsender.EmulatorSender()
+    table_sender = sender.emulatorsender.EmulatorSender()
+    spindel_sender = sender.spindelemulator.Spindel_EMU()
 else:
-    sender = sender.serialsender.SerialSender(port, brate)
+    table_sender = sender.serialsender.SerialSender(port, brate)
+    spindel_sender = sender.n700e.Spindel_N700E(port_485, n700e_id)
 
-controller = Controller(sender, "/tmp/cnccontrol")
+controller = Controller(table_sender, spindel_sender, "/tmp/cnccontrol")
 controller.run()

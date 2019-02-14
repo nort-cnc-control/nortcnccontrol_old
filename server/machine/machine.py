@@ -4,6 +4,8 @@ import abc
 import euclid3
 import math
 
+import traceback
+
 from enum import Enum
 
 from . import actions
@@ -292,15 +294,16 @@ class Machine(object):
                     self.exact_stop = True
                     break
 
-    def __init__(self, sender):
+    def __init__(self, table_sender, spindle_sender):
         print("Creating machine...")
-        self.stop          = True
-        self.sender        = sender
-        self.running       = event.EventEmitter()
-        self.paused        = event.EventEmitter()
-        self.finished      = event.EventEmitter()
-        self.line_selected = event.EventEmitter()
-        self.tool_selected = event.EventEmitter()
+        self.stop           = True
+        self.table_sender   = table_sender
+        self.spindle_sender = spindle_sender
+        self.running        = event.EventEmitter()
+        self.paused         = event.EventEmitter()
+        self.finished       = event.EventEmitter()
+        self.line_selected  = event.EventEmitter()
+        self.tool_selected  = event.EventEmitter()
         self.init()
         print("done")
 
@@ -364,14 +367,14 @@ class Machine(object):
         movement = linear.LinearMovement(delta, feed=self.state.fastfeed,
                                          acc=self.state.acc,
                                          exact_stop=exact_stop,
-                                         sender=self.sender)
+                                         sender=self.table_sender)
         self.__add_action(self.index, movement)
 
     def __insert_movement(self, delta, exact_stop):
         movement = linear.LinearMovement(delta, feed=self.state.feed,
                                          acc=self.state.acc,
                                          exact_stop=exact_stop,
-                                         sender=self.sender)
+                                         sender=self.table_sender)
         self.__add_action(self.index, movement)
 
     def __axis_convert(self, axis):
@@ -390,7 +393,7 @@ class Machine(object):
                                        axis=axis, ccw=ccw,
                                        acc=self.state.acc,
                                        exact_stop=exact_stop,
-                                       sender=self.sender)
+                                       sender=self.table_sender)
         self.__add_action(self.index, movement)
 
     def __insert_arc_IJK(self, delta, I, J, K, exact_stop):
@@ -400,7 +403,7 @@ class Machine(object):
                                        axis=axis, ccw=ccw,
                                        acc=self.state.acc,
                                        exact_stop=exact_stop,
-                                       sender=self.sender)
+                                       sender=self.table_sender)
         self.__add_action(self.index, movement)
 
 
@@ -440,25 +443,25 @@ class Machine(object):
     #endregion
 
     def __insert_homing(self, frame):
-        self.__add_action(self.index, homing.ToBeginMovement(sender=self.sender))
+        self.__add_action(self.index, homing.ToBeginMovement(sender=self.table_sender))
 
     #endregion Add MCU actions to queue
 
     #region Spindle actions
     def __insert_set_speed(self, speed):
         self.toolstate.speed = speed
-        self.__add_action(self.index, spindle.SpindleSetSpeed(speed))
+        self.__add_action(self.index, spindle.SpindleSetSpeed(self.spindle_sender, speed))
     
     def __insert_spindle_on(self, cw):
         if cw:
             self.toolstate.spindle = self.toolstate.spindle.spindle_cw
         else:
             self.toolstate.spindle = self.toolstate.spindle.spindle_ccw
-        self.__add_action(self.index, spindle.SpindleOn(self.toolstate.speed, cw))
+        self.__add_action(self.index, spindle.SpindleOn(self.spindle_sender, self.toolstate.speed, cw))
 
     def __insert_spindle_off(self):
         self.toolstate.spindle = self.toolstate.spindle.spindle_stop
-        self.__add_action(self.index, spindle.SpindleOff())
+        self.__add_action(self.index, spindle.SpindleOff(self.spindle_sender))
 
     #endregion Tool actions
 
@@ -498,12 +501,27 @@ class Machine(object):
     #endregion Add UI action
     
     #region Processing frame
+    def __start_stop_spindle(self, old, new):
+        if old != new:
+            if new == self.toolstate.SpindleGroup.spindle_stop:
+                self.__insert_spindle_off()
+            elif new == self.toolstate.SpindleGroup.spindle_cw:
+                self.__insert_spindle_on(True)
+            elif new == self.toolstate.SpindleGroup.spindle_ccw:
+                self.__insert_spindle_on(False)
+
     def __process_begin(self, frame):
+        old_state = self.toolstate.spindle
         self.toolstate.process_begin(frame)
+        new_state = self.toolstate.spindle
+        print("*** ", old_state, new_state)
+
         speed = self.SpindleSpeed(frame)
         if speed.speed != None:
             self.__insert_set_speed(speed.speed)
-
+            self.toolstate.speed = speed
+        self.__start_stop_spindle(old_state, new_state)
+        
     def __process_move(self, frame):
         self.state.process_frame(frame)
         pos = self.Positioning(frame)
@@ -526,7 +544,14 @@ class Machine(object):
             self.__insert_move(pos, stop.exact_stop)
 
     def __process_end(self, frame):
+
+        old_state = self.toolstate.spindle
         self.toolstate.process_end(frame)
+        new_state = self.toolstate.spindle
+
+        print("*** ", old_state, new_state)
+        self.__start_stop_spindle(old_state, new_state)
+        
         for cmd in frame.commands:
             if cmd.type != "M":
                 continue
@@ -626,7 +651,7 @@ class Machine(object):
         if not self.stop:
             raise Exception("Machine should be stopped")
         self.stop = False
-        act = actions.homing.ToBeginMovement(self.sender)
+        act = actions.homing.ToBeginMovement(self.table_sender)
         act.run()
         act.completed.wait()
         self.stop = True
@@ -635,7 +660,7 @@ class Machine(object):
         if not self.stop:
             raise Exception("Machine should be stopped")
         self.stop = False
-        act = actions.homing.ProbeMovement(self.sender)
+        act = actions.homing.ProbeMovement(self.table_sender)
         act.run()
         act.completed.wait()
         self.stop = True
@@ -657,7 +682,7 @@ class Machine(object):
                     prevframe.ready.wait()
                 print("previous frames are ready")
 
-            self.sender.has_slots.wait()
+            self.table_sender.has_slots.wait()
             cont = action.run()
             self.iter += 1
 

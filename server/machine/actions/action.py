@@ -69,11 +69,11 @@ class MCUAction(Action):
     def __init__(self, sender, **kwargs):
         Action.__init__(self, **kwargs)
         self.caching = True
-        self.sender = sender
+        self.table_sender = sender
         self.Nid = None
-        self.sender.dropped += self.__received_dropped
-        self.sender.completed += self.__received_completed
-        self.sender.started += self.__received_started
+        self.table_sender.dropped += self.__received_dropped
+        self.table_sender.completed += self.__received_completed
+        self.table_sender.started += self.__received_started
         self.__sending = False
 
     @abc.abstractmethod
@@ -81,10 +81,10 @@ class MCUAction(Action):
         return ""
 
     def dispose(self):
-        self.sender.dropped -= self.__received_dropped
-        self.sender.completed -= self.__received_completed
-        self.sender.started -= self.__received_started
-        self.sender.queued -= self.__received_queued
+        self.table_sender.dropped -= self.__received_dropped
+        self.table_sender.completed -= self.__received_completed
+        self.table_sender.started -= self.__received_started
+        self.table_sender.queued -= self.__received_queued
         
     def __received_queued(self, nid):
         self.Nid = int(nid)
@@ -109,11 +109,11 @@ class MCUAction(Action):
             self.action_completed(self)
 
     def act(self):
-        self.sender.queued += self.__received_queued
+        self.table_sender.queued += self.__received_queued
         cmd = self.command()
         self.completed.clear()
-        self.sender.send_command(cmd)
-        self.sender.queued -= self.__received_queued
+        self.table_sender.send_command(cmd)
+        self.table_sender.queued -= self.__received_queued
         return True
 
 # Movement actions

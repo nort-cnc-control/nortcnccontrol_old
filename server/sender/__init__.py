@@ -1,1 +1,1 @@
-all=["serialsender", "emulatorsender"]
+all=["serialsender", "emulatorsender", "n700e", "spindelemulator"]

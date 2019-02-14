@@ -28,3 +28,15 @@ class SpindleOn(action.ToolAction):
             self.sender.start_reverse()
         return True
 
+class SpindleSetSpeed(action.ToolAction):
+
+    def __init__(self, sender, speed, **kwargs):
+        action.ToolAction.__init__(self, **kwargs)
+        self.sender = sender
+        self.speed = speed
+
+    def perform(self):
+        print("Spindle speed = %lf" % self.speed)
+        self.sender.set_speed(self.speed)
+        return True
+
