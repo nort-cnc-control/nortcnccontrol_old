@@ -148,10 +148,10 @@ class Controller(object):
                     else:
                         pass
 
-port = "/dev/ttyUSB0"
+port = common.config.TABLE_PORT
 brate = common.config.BAUDRATE
-port_485 = "/dev/ttyUSB1"
-n700e_id = 1
+port_485 = common.config.RS485_PORT
+n700e_id = common.config.N700E_ID
 emulate = False
 
 try:

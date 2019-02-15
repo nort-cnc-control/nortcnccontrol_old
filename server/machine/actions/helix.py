@@ -16,6 +16,7 @@ class HelixMovement(action.Movement):
         zx = 19
 
     def command(self):
+        x, y, z = self._convert_axes(self.delta)
         if self.ccw:
             type_cmd = "G3 "
         else:
@@ -29,7 +30,7 @@ class HelixMovement(action.Movement):
             dir_cmd = "G19 "
 
         feed_cmd = "F%iP%iL%iT%i " % (self.feed, self.feed0+0.5, self.feed1+0.5, self.acceleration)
-        delta_cmd = "X%.2fY%.2fZ%.2f " % (self.delta.x, self.delta.y, self.delta.z)
+        delta_cmd = "X%.2fY%.2fZ%.2f " % (x, y, z)
         center_cmd = "D%.2f " % (self.hcl)
 
         code = type_cmd + feed_cmd + center_cmd + dir_cmd + delta_cmd

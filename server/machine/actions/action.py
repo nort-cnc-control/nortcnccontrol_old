@@ -1,6 +1,7 @@
 import abc
 import threading
 
+import common
 from common import event
 
 # Basic class for all actions
@@ -136,3 +137,22 @@ class Movement(MCUAction):
         self.feed0 = 0
         self.feed1 = 0
         self.acceleration = acc
+
+    def _convert_axes(self, delta):
+        # inverting axes
+        if common.config.X_INVERT:
+            x = -delta.x
+        else:
+            x = delta.x
+
+        if common.config.Y_INVERT:
+            y = -delta.y
+        else:
+            y = delta.y
+        
+        if common.config.Z_INVERT:
+            z = -delta.z
+        else:
+            z = delta.z
+        
+        return x, y, z

@@ -12,7 +12,7 @@ default_server = os.path.normpath(path + "/server/server.py")
 default_gui = os.path.normpath(path + "/gui/gcodeconvert.py")
 
 class ServerLauncher(object):
-    def __init__(self, server=default_server, emulate=True, port=config.PORT, baudrate=config.BAUDRATE):
+    def __init__(self, server=default_server, emulate=True, port=config.TABLE_PORT, baudrate=config.BAUDRATE):
         self.server = server
         self.emulate = emulate
         self.port = port
@@ -49,7 +49,7 @@ class GuiLauncher(object):
         self.proc = None
 
 emulate = False
-port = config.PORT
+port = config.TABLE_PORT
 brate = config.BAUDRATE
 
 try:

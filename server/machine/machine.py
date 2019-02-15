@@ -30,7 +30,7 @@ import threading
 # G0/G1
 # G2/G3
 # G17/G18/G19
-# G28
+# G74
 # G90
 # G91
 # G94
@@ -40,6 +40,12 @@ import threading
 class Machine(object):
 
     class PositioningState(object):
+
+        class CoordinateSystem(object):
+
+            def __init__(self, pos0):
+                self.mat = euclid3.Matrix4.new_translate(pos0.X, pos0.Y, pos0.Z)
+
 
         class MotionGroup(Enum):
             fast_move = 0
@@ -53,8 +59,8 @@ class Machine(object):
 
         class PlaneGroup(Enum):
             xy = 17
-            yz = 18
-            zx = 19
+            yz = 19
+            zx = 18
 
         class PositioningGroup(Enum):
             absolute = 90
@@ -129,9 +135,9 @@ class Machine(object):
                     self.motion = self.MotionGroup.round_ccw
                 elif cmd.value == 17:
                     self.plane = self.PlaneGroup.xy
-                elif cmd.value == 18:
-                    self.plane = self.PlaneGroup.yz
                 elif cmd.value == 19:
+                    self.plane = self.PlaneGroup.yz
+                elif cmd.value == 18:
                     self.plane = self.PlaneGroup.zx
                 elif cmd.value == 90:
                     self.positioning = self.PositioningGroup.absolute
@@ -408,6 +414,12 @@ class Machine(object):
         self.__add_action(self.index, movement)
 
 
+    #region coordinates
+
+
+
+    #endregion coordinates
+
     def __insert_move(self, pos, exact_stop):
         delta = self.__find_delta(pos)
 
@@ -515,7 +527,6 @@ class Machine(object):
         old_state = self.toolstate.spindle
         self.toolstate.process_begin(frame)
         new_state = self.toolstate.spindle
-#        print("*** ", old_state, new_state)
 
         speed = self.SpindleSpeed(frame)
         if speed.speed != None:
@@ -531,7 +542,7 @@ class Machine(object):
         
         for cmd in frame.commands:
             if cmd.type == "G":
-                if cmd.value == 28:
+                if cmd.value == 74:
                     self.__insert_homing(frame)
 
         if tool.tool != None:
@@ -549,7 +560,6 @@ class Machine(object):
         self.toolstate.process_end(frame)
         new_state = self.toolstate.spindle
 
-        #print("*** ", old_state, new_state)
         self.__start_stop_spindle(old_state, new_state)
         
         for cmd in frame.commands:
