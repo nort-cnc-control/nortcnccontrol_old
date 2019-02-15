@@ -43,9 +43,18 @@ class Machine(object):
 
         class CoordinateSystem(object):
 
-            def __init__(self, pos0):
-                self.mat = euclid3.Matrix4.new_translate(pos0.X, pos0.Y, pos0.Z)
+            def __init__(self, x, y, z):
+                self.mat = euclid3.Matrix4.new_translate(x, y, z)
+                self.invmat = euclid3.Matrix4.inverse(self.mat)
 
+            def local2global(self, x, y, z):
+                print("Converting ", x, y, z)
+                p = euclid3.Vector3(x, y, z)
+                return self.mat * p
+            
+            def global2local(self, x, y, z):
+                p = euclid3.Vector3(x, y, z)
+                return self.invmat * p
 
         class MotionGroup(Enum):
             fast_move = 0
@@ -108,7 +117,8 @@ class Machine(object):
             self.acc = common.config.ACCELERATION
             self.jerk = common.config.JERKING
 
-            self.pos = euclid3.Vector3()
+            # global coordinates
+            self.pos = euclid3.Vector3(0, 0, 0)
 
             self.motion       = self.MotionGroup.fast_move
             self.plane        = self.PlaneGroup.xy
@@ -120,6 +130,17 @@ class Machine(object):
             self.Spindle      = self.SpindleSpeedGroup.rpm_speed
             self.canned       = self.CannedCyclesGroup.retract_origin
             self.coord_system = self.CoordinateSystemGroup.no_offset
+
+            self.offsets = {
+                self.CoordinateSystemGroup.no_offset : self.CoordinateSystem(0, 0, 0),
+                self.CoordinateSystemGroup.offset_1  : self.CoordinateSystem(0, 0, 0),
+                self.CoordinateSystemGroup.offset_2  : self.CoordinateSystem(0, 0, 0),
+                self.CoordinateSystemGroup.offset_3  : self.CoordinateSystem(0, 0, 0),
+                self.CoordinateSystemGroup.offset_4  : self.CoordinateSystem(0, 0, 0),
+                self.CoordinateSystemGroup.offset_5  : self.CoordinateSystem(0, 0, 0),
+                self.CoordinateSystemGroup.offset_6  : self.CoordinateSystem(0, 0, 0),
+            }
+
 
         def process_frame(self, frame):
             for cmd in frame.commands:
@@ -317,8 +338,8 @@ class Machine(object):
         self.index = 0
         self.line_number = None
         self.actions = []
-        self.state = self.PositioningState()
-        self.toolstate = self.ToolState()
+        self.table_state = self.PositioningState()
+        self.tool_state = self.ToolState()
         self.work_init()
 
     def work_init(self):
@@ -336,50 +357,29 @@ class Machine(object):
         self.actions.append((index, action))
 
     def __set_feed(self, feed):
-        if self.state.feed_mode != self.PositioningState.FeedRateGroup.feed:
-            raise Exception("Unsupported feed mode %s" % self.state.feed_mode)
-        self.state.feed = feed
+        if self.table_state.feed_mode != self.PositioningState.FeedRateGroup.feed:
+            raise Exception("Unsupported feed mode %s" % self.table_state.feed_mode)
+        self.table_state.feed = feed
 
     def __set_acceleration(self, acc):
-        self.state.acc = acc
+        self.table_state.acc = acc
     
     def __set_jerk(self, jerk):
-        self.state.jerk = jerk
+        self.table_state.jerk = jerk
 
     #region Add MCU actions to queue
 
     #region movement
-    def __find_delta(self, pos):
-        newpos = self.state.pos
-
-        if self.state.positioning == self.PositioningState.PositioningGroup.relative:
-            if pos.X != None:
-                newpos = euclid3.Vector3(pos.X + newpos.x, newpos.y, newpos.z)
-            if pos.Y != None:
-                newpos = euclid3.Vector3(newpos.x, pos.Y + newpos.y, newpos.z)
-            if pos.Z != None:
-                newpos = euclid3.Vector3(newpos.x, newpos.y, pos.Z + newpos.z)
-        elif self.state.positioning == self.PositioningState.PositioningGroup.absolute:
-            if pos.X != None:
-                newpos = euclid3.Vector3(pos.X, newpos.y, newpos.z)
-            if pos.Y != None:
-                newpos = euclid3.Vector3(newpos.x, pos.Y, newpos.z)
-            if pos.Z != None:
-                newpos = euclid3.Vector3(newpos.x, newpos.y, pos.Z)
-
-        delta = newpos - self.state.pos
-        return delta
-
     def __insert_fast_movement(self, delta, exact_stop):
-        movement = linear.LinearMovement(delta, feed=self.state.fastfeed,
-                                         acc=self.state.acc,
+        movement = linear.LinearMovement(delta, feed=self.table_state.fastfeed,
+                                         acc=self.table_state.acc,
                                          exact_stop=exact_stop,
                                          sender=self.table_sender)
         self.__add_action(self.index, movement)
 
     def __insert_movement(self, delta, exact_stop):
-        movement = linear.LinearMovement(delta, feed=self.state.feed,
-                                         acc=self.state.acc,
+        movement = linear.LinearMovement(delta, feed=self.table_state.feed,
+                                         acc=self.table_state.acc,
                                          exact_stop=exact_stop,
                                          sender=self.table_sender)
         self.__add_action(self.index, movement)
@@ -394,46 +394,60 @@ class Machine(object):
         return axis
 
     def __insert_arc_R(self, delta, R, exact_stop):
-        ccw = self.state.motion == self.PositioningState.MotionGroup.round_ccw
-        axis = self.__axis_convert(self.state.plane)
-        movement = helix.HelixMovement(delta, feed=self.state.feed, r=R,
+        ccw = self.table_state.motion == self.PositioningState.MotionGroup.round_ccw
+        axis = self.__axis_convert(self.table_state.plane)
+        movement = helix.HelixMovement(delta, feed=self.table_state.feed, r=R,
                                        axis=axis, ccw=ccw,
-                                       acc=self.state.acc,
+                                       acc=self.table_state.acc,
                                        exact_stop=exact_stop,
                                        sender=self.table_sender)
         self.__add_action(self.index, movement)
 
     def __insert_arc_IJK(self, delta, I, J, K, exact_stop):
-        ccw = self.state.motion == self.PositioningState.MotionGroup.round_ccw
-        axis = self.__axis_convert(self.state.plane)
-        movement = helix.HelixMovement(delta, feed=self.state.feed, i=I, j=J, k=K,
+        ccw = self.table_state.motion == self.PositioningState.MotionGroup.round_ccw
+        axis = self.__axis_convert(self.table_state.plane)
+        movement = helix.HelixMovement(delta, feed=self.table_state.feed, i=I, j=J, k=K,
                                        axis=axis, ccw=ccw,
-                                       acc=self.state.acc,
+                                       acc=self.table_state.acc,
                                        exact_stop=exact_stop,
                                        sender=self.table_sender)
         self.__add_action(self.index, movement)
 
-
-    #region coordinates
-
-
-
-    #endregion coordinates
-
     def __insert_move(self, pos, exact_stop):
-        delta = self.__find_delta(pos)
+
+        if self.table_state.positioning == self.PositioningState.PositioningGroup.absolute:
+            cs = self.table_state.offsets[self.table_state.coord_system]
+
+            newpos = cs.global2local(self.table_state.pos.x, self.table_state.pos.y, self.table_state.pos.z)
+
+            if pos.X != None:
+                newpos = euclid3.Vector3(pos.X, newpos.y, newpos.z)
+            if pos.Y != None:
+                newpos = euclid3.Vector3(newpos.x, pos.Y, newpos.z)
+            if pos.Z != None:
+                newpos = euclid3.Vector3(newpos.x, newpos.y, pos.Z)
+
+            delta = newpos - self.table_state.pos
+        else:
+            delta = euclid3.Vector3()
+            if pos.X != None:
+                delta.x = pos.X
+            if pos.Y != None:
+                delta.y = pos.Y
+            if pos.Z != None:
+                delta.z = pos.Z
 
         # Normal linear move
-        if self.state.motion == self.PositioningState.MotionGroup.line:
+        if self.table_state.motion == self.PositioningState.MotionGroup.line:
             self.__insert_movement(delta, exact_stop)
         
         # Fast linear move
-        elif self.state.motion == self.PositioningState.MotionGroup.fast_move:
+        elif self.table_state.motion == self.PositioningState.MotionGroup.fast_move:
             self.__insert_fast_movement(delta, exact_stop)
         
         # Arc movement
-        elif self.state.motion == self.PositioningState.MotionGroup.round_cw or \
-             self.state.motion == self.PositioningState.MotionGroup.round_ccw:
+        elif self.table_state.motion == self.PositioningState.MotionGroup.round_cw or \
+             self.table_state.motion == self.PositioningState.MotionGroup.round_ccw:
             if pos.R != None:
                 self.__insert_arc_R(delta, pos.R, exact_stop)
             else:
@@ -449,9 +463,9 @@ class Machine(object):
                 self.__insert_arc_IJK(delta, ci, cj, ck, exact_stop)
 
         else:
-            raise Exception("Not implemented %s motion state" % self.state.motion)
+            raise Exception("Not implemented %s motion state" % self.table_state.motion)
 
-        self.state.pos += delta
+        self.table_state.pos += delta
 
     #endregion
 
@@ -462,18 +476,18 @@ class Machine(object):
 
     #region Spindle actions
     def __insert_set_speed(self, speed):
-        self.toolstate.speed = speed
+        self.tool_state.speed = speed
         self.__add_action(self.index, spindle.SpindleSetSpeed(self.spindle_sender, speed))
     
     def __insert_spindle_on(self, cw):
         if cw:
-            self.toolstate.spindle = self.toolstate.spindle.spindle_cw
+            self.tool_state.spindle = self.tool_state.spindle.spindle_cw
         else:
-            self.toolstate.spindle = self.toolstate.spindle.spindle_ccw
-        self.__add_action(self.index, spindle.SpindleOn(self.spindle_sender, self.toolstate.speed, cw))
+            self.tool_state.spindle = self.tool_state.spindle.spindle_ccw
+        self.__add_action(self.index, spindle.SpindleOn(self.spindle_sender, self.tool_state.speed, cw))
 
     def __insert_spindle_off(self):
-        self.toolstate.spindle = self.toolstate.spindle.spindle_stop
+        self.tool_state.spindle = self.tool_state.spindle.spindle_stop
         self.__add_action(self.index, spindle.SpindleOff(self.spindle_sender))
 
     #endregion Tool actions
@@ -495,7 +509,7 @@ class Machine(object):
         self.tool_selected(tool)
 
     def __insert_select_tool(self, tool):
-        self.toolstate.tool = tool
+        self.tool_state.tool = tool
         tl = tools.WaitTool(tool)
         tl.tool_changed += self.__tool_selected
         self.__add_action(self.index, tl)
@@ -516,25 +530,25 @@ class Machine(object):
     #region Processing frame
     def __start_stop_spindle(self, old, new):
         if old != new:
-            if new == self.toolstate.SpindleGroup.spindle_stop:
+            if new == self.tool_state.SpindleGroup.spindle_stop:
                 self.__insert_spindle_off()
-            elif new == self.toolstate.SpindleGroup.spindle_cw:
+            elif new == self.tool_state.SpindleGroup.spindle_cw:
                 self.__insert_spindle_on(True)
-            elif new == self.toolstate.SpindleGroup.spindle_ccw:
+            elif new == self.tool_state.SpindleGroup.spindle_ccw:
                 self.__insert_spindle_on(False)
 
     def __process_begin(self, frame):
-        old_state = self.toolstate.spindle
-        self.toolstate.process_begin(frame)
-        new_state = self.toolstate.spindle
+        old_state = self.tool_state.spindle
+        self.tool_state.process_begin(frame)
+        new_state = self.tool_state.spindle
 
         speed = self.SpindleSpeed(frame)
-        if speed.speed != None:
+        if speed.speed != None and speed.speed != self.tool_state.speed:
             self.__insert_set_speed(speed.speed)
         self.__start_stop_spindle(old_state, new_state)
         
     def __process_move(self, frame):
-        self.state.process_frame(frame)
+        self.table_state.process_frame(frame)
         pos = self.Positioning(frame)
         feed = self.Feed(frame)
         stop = self.ExactStop(frame)
@@ -556,9 +570,9 @@ class Machine(object):
 
     def __process_end(self, frame):
 
-        old_state = self.toolstate.spindle
-        self.toolstate.process_end(frame)
-        new_state = self.toolstate.spindle
+        old_state = self.tool_state.spindle
+        self.tool_state.process_end(frame)
+        new_state = self.tool_state.spindle
 
         self.__start_stop_spindle(old_state, new_state)
         
@@ -623,7 +637,7 @@ class Machine(object):
 
                         startfeed = curfeed
                         startfeed = min(startfeed, prevfeed / cosa)
-                        startfeed = min(startfeed, self.state.jerk / sina)
+                        startfeed = min(startfeed, self.table_state.jerk / sina)
                         endfeed = startfeed * cosa
 
                         move.feed0 = startfeed
@@ -720,3 +734,17 @@ class Machine(object):
         self.work_init()
         self.stop = True
         self.finished()
+
+    def SetZero(self, index=None):
+        if index is None:
+            index = self.table_state.coord_system
+
+        if index == self.table_state.CoordinateSystemGroup.no_offset:
+            raise Exception("Can not set offset for global CS")
+        
+        x = self.table_state.pos.x
+        y = self.table_state.pos.y
+        z = self.table_state.pos.z
+
+        cs = self.table_state.CoordinateSystem(x, y, z)
+        self.table_state.offsets[index] = cs
