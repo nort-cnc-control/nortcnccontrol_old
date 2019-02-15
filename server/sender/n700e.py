@@ -33,7 +33,7 @@ class Spindel_N700E(object):
         self.client.close()
 
     def set_speed(self, speed):
-        self.__write_register(self.__speed_register, int(speed * 100))
+        self.__write_register(self.__speed_register, int(speed / 60.0 * 100))
 
     def start_forward(self):
         self.__write_register(self.__run_register, self.__run_forward)

@@ -515,7 +515,7 @@ class Machine(object):
         old_state = self.toolstate.spindle
         self.toolstate.process_begin(frame)
         new_state = self.toolstate.spindle
-        print("*** ", old_state, new_state)
+#        print("*** ", old_state, new_state)
 
         speed = self.SpindleSpeed(frame)
         if speed.speed != None:
@@ -549,7 +549,7 @@ class Machine(object):
         self.toolstate.process_end(frame)
         new_state = self.toolstate.spindle
 
-        print("*** ", old_state, new_state)
+        #print("*** ", old_state, new_state)
         self.__start_stop_spindle(old_state, new_state)
         
         for cmd in frame.commands:
