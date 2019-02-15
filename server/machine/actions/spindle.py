@@ -1,9 +1,9 @@
 import time
+import common
+from common import config
 
 from . import action
 
-spindle_max = 400.0
-spindle_delay = 5.0
 
 class SpindleOff(action.ToolAction):
 
@@ -31,7 +31,7 @@ class SpindleOn(action.ToolAction):
             self.sender.start_forward()
         else:
             self.sender.start_reverse()
-        time.sleep(spindle_delay * self.speed / spindle_max)
+        time.sleep(config.SPINDLE_DELAY * self.speed / config.SPINDLE_MAX)
         return True
 
 class SpindleSetSpeed(action.ToolAction):

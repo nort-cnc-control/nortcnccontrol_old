@@ -321,6 +321,7 @@ class Machine(object):
         self.display_paused = False
         for (_, action) in self.actions:
             action.completed.clear()
+            action.ready.clear()
         if len(self.actions) > 0:
             self.line_selected(self.actions[0][0])
 
