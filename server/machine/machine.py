@@ -519,7 +519,6 @@ class Machine(object):
         speed = self.SpindleSpeed(frame)
         if speed.speed != None:
             self.__insert_set_speed(speed.speed)
-            self.toolstate.speed = speed
         self.__start_stop_spindle(old_state, new_state)
         
     def __process_move(self, frame):
