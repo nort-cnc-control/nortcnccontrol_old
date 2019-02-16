@@ -488,6 +488,9 @@ class Machine(object):
     def __insert_homing(self, frame):
         self.__add_action(self.index, homing.ToBeginMovement(sender=self.table_sender))
 
+    def __insert_z_probe(self, frame):
+        self.__add_action(self.index, homing.ProbeMovement(sender=self.table_sender))
+    
     #endregion Add MCU actions to queue
 
     #region Spindle actions
@@ -576,6 +579,8 @@ class Machine(object):
             if cmd.type == "G":
                 if cmd.value == 74:
                     self.__insert_homing(frame)
+                elif cmd.value == 30:
+                    self.__insert_z_probe(frame)
                 elif cmd.value == 92:
                     # set offset registers
                     self.__set_coordinates(x=pos.X, y=pos.Y, z=pos.Z)
