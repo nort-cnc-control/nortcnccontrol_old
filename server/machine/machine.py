@@ -44,17 +44,15 @@ class Machine(object):
         class CoordinateSystem(object):
 
             def __init__(self, x, y, z):
-                self.mat = euclid3.Matrix4.new_translate(x, y, z)
-                self.invmat = euclid3.Matrix4.inverse(self.mat)
+                self.x = x
+                self.y = y
+                self.z = z
 
             def local2global(self, x, y, z):
-                print("Converting ", x, y, z)
-                p = euclid3.Vector3(x, y, z)
-                return self.mat * p
+                return euclid3.Vector3(x + self.x, y + self.y, z + self.z)
             
             def global2local(self, x, y, z):
-                p = euclid3.Vector3(x, y, z)
-                return self.invmat * p
+                return euclid3.Vector3(x - self.x, y - self.y, z - self.z)
 
         class MotionGroup(Enum):
             fast_move = 0
@@ -160,6 +158,20 @@ class Machine(object):
                     self.plane = self.PlaneGroup.yz
                 elif cmd.value == 18:
                     self.plane = self.PlaneGroup.zx
+                elif cmd.value == 53:
+                    self.coord_system = self.CoordinateSystemGroup.no_offset
+                elif cmd.value == 54:
+                    self.coord_system = self.CoordinateSystemGroup.offset_1
+                elif cmd.value == 55:
+                    self.coord_system = self.CoordinateSystemGroup.offset_2
+                elif cmd.value == 56:
+                    self.coord_system = self.CoordinateSystemGroup.offset_3
+                elif cmd.value == 57:
+                    self.coord_system = self.CoordinateSystemGroup.offset_4
+                elif cmd.value == 58:
+                    self.coord_system = self.CoordinateSystemGroup.offset_5
+                elif cmd.value == 59:
+                    self.coord_system = self.CoordinateSystemGroup.offset_6
                 elif cmd.value == 90:
                     self.positioning = self.PositioningGroup.absolute
                 elif cmd.value == 91:
@@ -415,10 +427,14 @@ class Machine(object):
 
     def __insert_move(self, pos, exact_stop):
 
+        print("*** Insert move ", pos.X, pos.Y, pos.Z)
+        #traceback.print_stack()
         if self.table_state.positioning == self.PositioningState.PositioningGroup.absolute:
             cs = self.table_state.offsets[self.table_state.coord_system]
 
-            newpos = cs.global2local(self.table_state.pos.x, self.table_state.pos.y, self.table_state.pos.z)
+            origpos = self.table_state.pos
+            origpos = cs.global2local(origpos.x, origpos.y, origpos.z)
+            newpos = origpos
 
             if pos.X != None:
                 newpos = euclid3.Vector3(pos.X, newpos.y, newpos.z)
@@ -427,7 +443,7 @@ class Machine(object):
             if pos.Z != None:
                 newpos = euclid3.Vector3(newpos.x, newpos.y, pos.Z)
 
-            delta = newpos - self.table_state.pos
+            delta = newpos - origpos
         else:
             delta = euclid3.Vector3()
             if pos.X != None:
@@ -554,10 +570,16 @@ class Machine(object):
         stop = self.ExactStop(frame)
         tool = self.Tool(frame)
         
+        no_motion = False
+
         for cmd in frame.commands:
             if cmd.type == "G":
                 if cmd.value == 74:
                     self.__insert_homing(frame)
+                elif cmd.value == 92:
+                    # set offset registers
+                    self.__set_coordinates(x=pos.X, y=pos.Y, z=pos.Z)
+                    no_motion = True
 
         if tool.tool != None:
             self.__insert_select_tool(tool.tool)
@@ -565,7 +587,7 @@ class Machine(object):
         if feed.feed != None:
             self.__set_feed(feed.feed)
 
-        if pos.is_moving:
+        if pos.is_moving and not no_motion:
             self.__insert_move(pos, stop.exact_stop)
 
     def __process_end(self, frame):
@@ -735,16 +757,26 @@ class Machine(object):
         self.stop = True
         self.finished()
 
-    def SetZero(self, index=None):
-        if index is None:
-            index = self.table_state.coord_system
-
+    def __set_coordinates(self, x, y, z):
+        index = self.table_state.coord_system
         if index == self.table_state.CoordinateSystemGroup.no_offset:
             raise Exception("Can not set offset for global CS")
-        
-        x = self.table_state.pos.x
-        y = self.table_state.pos.y
-        z = self.table_state.pos.z
 
-        cs = self.table_state.CoordinateSystem(x, y, z)
+        offset = self.table_state.offsets[index]
+        if x != None:
+            x0 = self.table_state.pos.x - x
+        else:
+            x0 = offset.x
+
+        if y != None:
+            y0 = self.table_state.pos.y - y
+        else:
+            y0 = offset.y
+
+        if z != None:
+            z0 = self.table_state.pos.z - z
+        else:
+            z0 = offset.z
+
+        cs = self.table_state.CoordinateSystem(x0, y0, z0)
         self.table_state.offsets[index] = cs
