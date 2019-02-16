@@ -145,11 +145,11 @@ class HelixMovement(action.Movement):
         else:
             self.plane_is_left = not common.config.ZX_RIGHT
         
-        if not self.plane_is_left:
-            self.ccw = ccw
-        else:
-            self.ccw = not ccw
-
+        #if not self.plane_is_left:
+        #    self.ccw = ccw
+        #else:
+        #    self.ccw = not ccw
+        self.ccw = ccw
         if "r" in kwargs.keys():
             self.r = kwargs["r"]
             # center - center of circle
