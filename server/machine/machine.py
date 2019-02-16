@@ -495,7 +495,6 @@ class Machine(object):
 
     #region Spindle actions
     def __insert_set_speed(self, speed):
-        self.tool_state.speed = speed
         self.__add_action(self.index, spindle.SpindleSetSpeed(self.spindle_sender, speed))
     
     def __insert_spindle_on(self, cw):
@@ -562,7 +561,12 @@ class Machine(object):
         new_state = self.tool_state.spindle
 
         speed = self.SpindleSpeed(frame)
-        if speed.speed != None and speed.speed != self.tool_state.speed:
+        if speed.speed != None:
+            self.tool_state.speed = speed.speed
+        
+        if speed.speed != None and \
+            speed.speed != self.tool_state.speed and \
+            old_state != self.tool_state.SpindleGroup.spindle_stop:
             self.__insert_set_speed(speed.speed)
         self.__start_stop_spindle(old_state, new_state)
         
