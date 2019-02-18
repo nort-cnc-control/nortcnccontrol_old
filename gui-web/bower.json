@@ -1,0 +1,23 @@
+{
+  "name": "cnccontrol",
+  "homepage": "https://github.com/vladtcvs/cnccontrol",
+  "authors": [
+    "Maxim Dunaevsky <dunmaksim@yandex.ru>"
+  ],
+  "description": "",
+  "main": "",
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "web/static",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "dojo": "^1.14.2",
+    "dijit": "dojo/dijit#^1.14.2",
+    "dijit-themes": "dojo-themes#^1.14.2"
+  }
+}
