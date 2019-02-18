@@ -1,2 +1,6 @@
 __pycache__
 /bin/
+/gui-web/web/static/dojo
+/gui-web/web/static/dijit
+/gui-web/web/static/dijit-themes
+
