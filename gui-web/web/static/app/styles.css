@@ -15,6 +15,11 @@ html, body {
     overflow: hidden;
 }
 
+.gcode-editor {
+    width: 100%;
+    overflow: hidden;
+}
+
 #loadingIndicator {
     position: absolute;
     left: 50%;

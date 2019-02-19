@@ -6,7 +6,9 @@ define([
     "dijit/layout/ContentPane",
     "dijit/Toolbar",
     "dijit/ToolbarSeparator",
-    "dijit/form/Button"
+    "dijit/form/Button",
+    "dijit/form/SimpleTextarea",
+    "dijit/form/TextBox"
 ], function(
     declare,
     lang,
@@ -15,48 +17,65 @@ define([
     ContentPane,
     Toolbar,
     ToolbarSeparator,
-    Button
+    Button,
+    SimpleTextarea,
+    TextBox,
 ) {
-    return declare("app.Desktop", [
-        LayoutContainer
-    ], {
-        class: "desktop", // CSS-class for desktop
+	return declare("app.Desktop", [LayoutContainer],
+		{
+			class: "desktop", // CSS-class for desktop
+			buildRendering: function() {
+				this.inherited(arguments);
 
-        buildRendering: function() {
-            this.inherited(arguments);
+				this.toolbar = new Toolbar({region: "top"});
 
-            this.toolbar = new Toolbar({region: "top"});
-            this.center = new ContentPane({region: "main"});
+				this.addChild(this.toolbar);
 
-            this.addChild(this.toolbar);
-            this.addChild(this.center);
+				this.loadButton = new Button({
+					label: "Загрузка",
+					"class": "alt-primary"
+				});
+				this.startButton = new Button({
+					label: "Старт",
+					"class": "alt-success"
+				});
+				this.continueButton = new Button({
+					label: "Продолжить",
+					"class": "alt-success"
+				});
+				this.stopButton = new Button({
+					label: "Стоп",
+					"class": "alt-danger"
+				});
+				this.homeXYZButton = new Button({
+					label: "Home XYZ"
+				});
+				this.probeZButton = new Button({
+					label: "Probe Z"
+				});
 
-            this.loadButton = new Button({
-                label: "Загрузка",
-                "class": "alt-primary"
-            });
-            this.startButton = new Button({
-                label: "Старт",
-                "class": "alt-success"
-            });
-            this.stopButton = new Button({
-                label: "Стоп",
-                "class": "alt-danger"
-            });
-            this.homeXYZButton = new Button({
-                label: "Home XYZ"
-            });
-            this.probeZButton = new Button({
-                label: "Probe Z"
-            });
+				this.toolbar.addChild(this.loadButton);
+				this.toolbar.addChild(new ToolbarSeparator({}));
+				this.toolbar.addChild(this.startButton);
+				this.toolbar.addChild(this.continueButton);
+				this.toolbar.addChild(this.stopButton);
+				this.toolbar.addChild(new ToolbarSeparator({}));
+				this.toolbar.addChild(this.homeXYZButton);
+				this.toolbar.addChild(this.probeZButton);
 
-            this.toolbar.addChild(this.loadButton);
-            this.toolbar.addChild(new ToolbarSeparator({}));
-            this.toolbar.addChild(this.startButton);
-            this.toolbar.addChild(this.stopButton);
-            this.toolbar.addChild(new ToolbarSeparator({}));
-            this.toolbar.addChild(this.homeXYZButton);
-            this.toolbar.addChild(this.probeZButton);
-        }
-    });
+
+				this.gcode = new SimpleTextarea(
+					{
+						name: "gcode-editor",
+						region:"main",
+						rows: "40",
+						cols: "120"
+					})
+				this.addChild(this.gcode);
+
+				this.command = new TextBox({name: "command", region:"bottom"})
+				this.addChild(this.command)
+			}
+		});
 });
+
