@@ -11,3 +11,4 @@ class Finish(action.InstantAction):
     def perform(self):
         self.finished(self)
         return False
+

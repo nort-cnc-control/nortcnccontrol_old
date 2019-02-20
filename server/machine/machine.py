@@ -535,7 +535,7 @@ class Machine(object):
 
     #region Finish
     def __finish(self, action):
-            self.stop = True
+        self.stop = True
 
     def __program_end(self):
         act = program.Finish()
@@ -727,7 +727,7 @@ class Machine(object):
             self.finished()
             return True
         action = None
-        while self.iter < len(self.actions):
+        while self.iter < len(self.actions) and not self.stop:
             action = self.actions[self.iter][1]
             if not action.caching:
                 # we should wait until previous actions are ready
@@ -746,7 +746,7 @@ class Machine(object):
                     self.paused(self.display_paused)
                 self.display_paused = False
                 return False
-        self.actions[-1][1].completed.wait()
+        action.completed.wait()
         self.finished()
         self.stop = True
         return True
