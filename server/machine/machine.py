@@ -35,6 +35,8 @@ import threading
 # G91
 # G94
 # M0
+# M97
+# M99
 # M204
 
 class Machine(object):
@@ -230,6 +232,7 @@ class Machine(object):
                 elif cmd.value == 9:
                     self.coolant = self.CoolantGroup.no_coolant
 
+
     class Positioning(object):
 
         is_moving = False
@@ -308,6 +311,17 @@ class Machine(object):
                         raise Exception("T meets 2 times")
                     self.tool = cmd.value
 
+    class ProgramId(object):
+        
+        program = None
+ 
+        def __init__(self, frame):
+            for cmd in frame.commands:
+                if cmd.type == "P":
+                    if self.program != None:
+                        raise Exception("P meets 2 times")
+                    self.program = cmd.value
+
     class LineNumber(object):
 
         N = None
@@ -321,7 +335,7 @@ class Machine(object):
             rep = [cmd for cmd in frame.commands[1:] if cmd.type == "N" ]
             if len(rep) > 0:
                 raise Exception("N can only be first word")
-            self.N = frame.commands[0].value
+            self.N = int(frame.commands[0].value)
 
     class ExactStop(object):
 
@@ -347,7 +361,9 @@ class Machine(object):
         print("done")
 
     def init(self):
+        self.subprograms = {}
         self.index = 0
+        self.line = 0
         self.line_number = None
         self.actions = []
         self.table_state = self.PositioningState()
@@ -355,18 +371,19 @@ class Machine(object):
         self.work_init()
 
     def work_init(self):
+        self.program_stack = []
         self.stop = True
         self.iter = 0
         self.display_paused = False
-        for (_, action) in self.actions:
+        for (_, action, _) in self.actions:
             action.completed.clear()
             action.ready.clear()
         if len(self.actions) > 0:
-            self.line_selected(self.actions[0][0])
+            self.line_selected(self.actions[0][2])
 
-    def __add_action(self, index, action):
+    def __add_action(self, action):
         action.action_started += self.__action_started
-        self.actions.append((index, action))
+        self.actions.append((self.index, action, self.line))
 
     def __set_feed(self, feed):
         if self.table_state.feed_mode != self.PositioningState.FeedRateGroup.feed:
@@ -387,14 +404,14 @@ class Machine(object):
                                          acc=self.table_state.acc,
                                          exact_stop=exact_stop,
                                          sender=self.table_sender)
-        self.__add_action(self.index, movement)
+        self.__add_action(movement)
 
     def __insert_movement(self, delta, exact_stop):
         movement = linear.LinearMovement(delta, feed=self.table_state.feed,
                                          acc=self.table_state.acc,
                                          exact_stop=exact_stop,
                                          sender=self.table_sender)
-        self.__add_action(self.index, movement)
+        self.__add_action(movement)
 
     def __axis_convert(self, axis):
         if axis == self.PositioningState.PlaneGroup.xy:
@@ -413,7 +430,7 @@ class Machine(object):
                                        acc=self.table_state.acc,
                                        exact_stop=exact_stop,
                                        sender=self.table_sender)
-        self.__add_action(self.index, movement)
+        self.__add_action(movement)
 
     def __insert_arc_IJK(self, delta, I, J, K, exact_stop):
         ccw = self.table_state.motion == self.PositioningState.MotionGroup.round_ccw
@@ -423,7 +440,7 @@ class Machine(object):
                                        acc=self.table_state.acc,
                                        exact_stop=exact_stop,
                                        sender=self.table_sender)
-        self.__add_action(self.index, movement)
+        self.__add_action(movement)
 
     def __insert_move(self, pos, exact_stop):
 
@@ -486,27 +503,27 @@ class Machine(object):
     #endregion
 
     def __insert_homing(self, frame):
-        self.__add_action(self.index, homing.ToBeginMovement(sender=self.table_sender))
+        self.__add_action(homing.ToBeginMovement(sender=self.table_sender))
 
     def __insert_z_probe(self, frame):
-        self.__add_action(self.index, homing.ProbeMovement(sender=self.table_sender))
+        self.__add_action(homing.ProbeMovement(sender=self.table_sender))
     
     #endregion Add MCU actions to queue
 
     #region Spindle actions
     def __insert_set_speed(self, speed):
-        self.__add_action(self.index, spindle.SpindleSetSpeed(self.spindle_sender, speed))
+        self.__add_action(spindle.SpindleSetSpeed(self.spindle_sender, speed))
     
     def __insert_spindle_on(self, cw):
         if cw:
             self.tool_state.spindle = self.tool_state.spindle.spindle_cw
         else:
             self.tool_state.spindle = self.tool_state.spindle.spindle_ccw
-        self.__add_action(self.index, spindle.SpindleOn(self.spindle_sender, self.tool_state.speed, cw))
+        self.__add_action(spindle.SpindleOn(self.spindle_sender, self.tool_state.speed, cw))
 
     def __insert_spindle_off(self):
         self.tool_state.spindle = self.tool_state.spindle.spindle_stop
-        self.__add_action(self.index, spindle.SpindleOff(self.spindle_sender))
+        self.__add_action(spindle.SpindleOff(self.spindle_sender))
 
     #endregion Tool actions
 
@@ -519,7 +536,7 @@ class Machine(object):
     def __insert_pause(self):
         p = pause.WaitResume()
         p.paused += self.__paused
-        self.__add_action(self.index, p)
+        self.__add_action(p)
     #endregion
 
     #region tool
@@ -530,7 +547,7 @@ class Machine(object):
         self.tool_state.tool = tool
         tl = tools.WaitTool(tool)
         tl.tool_changed += self.__tool_selected
-        self.__add_action(self.index, tl)
+        self.__add_action(tl)
     #endregion
 
     #region Finish
@@ -540,7 +557,28 @@ class Machine(object):
     def __program_end(self):
         act = program.Finish()
         act.finished += self.__finish
-        self.__add_action(self.index, act)
+        self.__add_action(act)
+        return -1
+    #endregion
+
+    #region Subprograms
+
+    def __use_subprogram(self, id, frame):
+        pr = self.ProgramId(frame)
+        if pr.program is None:
+            print("WARNING: no subprogram Id, ignoring")
+            return
+        self.program_stack.append(id)
+        pid = pr.program
+        return self.subprograms[pid]
+
+    def __return_from_subprogramm(self):
+        if len(self.program_stack) == 0:
+            return self.__program_end()
+        tid = self.program_stack[-1] + 1
+        self.program_stack = self.program_stack[:-2]
+        return tid
+
     #endregion
 
     #endregion Add UI action
@@ -599,7 +637,7 @@ class Machine(object):
         if pos.is_moving and not no_motion:
             self.__insert_move(pos, stop.exact_stop)
 
-    def __process_end(self, frame):
+    def __process_end(self, id, frame):
 
         old_state = self.tool_state.spindle
         self.tool_state.process_end(frame)
@@ -613,18 +651,32 @@ class Machine(object):
             if cmd.value == 0:
                 self.__insert_pause()
             elif cmd.value == 2:
-                self.__program_end()
+                return self.__program_end()
             elif cmd.value == 30:
-                self.__program_end()
+                return self.__program_end()
+            elif cmd.value == 97:
+                return self.__use_subprogram(id, frame)
+            elif cmd.value == 99:
+                return self.__return_from_subprogramm()
+        return None
 
-    def __process(self, frame):
+    def __process(self, id, frame):
+        self.line = id
+
         self.line_number = self.LineNumber(frame)
 
         self.__process_begin(frame)
         self.__process_move(frame)
-        self.__process_end(frame)
+        next = self.__process_end(id, frame)
 
         self.index += 1
+        return next
+    
+    def __save_label(self, id, frame):
+        pid = self.LineNumber(frame)
+        if pid.N != None:
+            self.subprograms[pid.N] = id
+
     #endregion
 
     def __optimize(self):
@@ -632,7 +684,7 @@ class Machine(object):
         prevfeed = 0
         prevdir = euclid3.Vector3(0, 0, 0)
 
-        for (_, move) in self.actions:
+        for (_, move, _) in self.actions:
 
             if move.is_moving() == False:
                 prevmove = None
@@ -694,12 +746,23 @@ class Machine(object):
                 break
         if i >= len(self.actions):
             return
-        self.line_selected(self.actions[i][0])
+        self.line_selected(self.actions[i][2])
 
     def Load(self, frames):
         self.init()
-        for frame in frames:
-            self.__process(frame)
+        for id in range(len(frames)):
+            self.__save_label(id, frames[id])
+
+        i = 0
+        while i < len(frames):
+            next = self.__process(i, frames[i])
+            if next is None:
+                i = i + 1
+            elif next < 0:
+                break
+            else:
+                i = next
+
         self.__optimize()
 
     def MakeHoming(self, x, y, z):

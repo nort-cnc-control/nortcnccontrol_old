@@ -6,7 +6,7 @@ class GCmd(object):
         self.parsed = None
         self.type = s[0]
         self.value = s[1:]
-        if "GMT".find(self.type) != -1:
+        if "GMTPL".find(self.type) != -1:
             self.value = int(self.value)
         elif "FXYZABCIJKSR".find(self.type) != -1:
             self.value = float(self.value)
