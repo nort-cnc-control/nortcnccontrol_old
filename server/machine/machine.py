@@ -314,6 +314,7 @@ class Machine(object):
     class ProgramId(object):
         
         program = None
+        num = None
  
         def __init__(self, frame):
             for cmd in frame.commands:
@@ -321,6 +322,12 @@ class Machine(object):
                     if self.program != None:
                         raise Exception("P meets 2 times")
                     self.program = cmd.value
+                if cmd.type == "L":
+                    if self.num != None:
+                        raise Exception("L meets 2 times")
+                    self.num = cmd.value
+            if self.program != None and self.num is None:
+                self.num = 1
 
     class LineNumber(object):
 
@@ -567,16 +574,23 @@ class Machine(object):
         pr = self.ProgramId(frame)
         if pr.program is None:
             print("WARNING: no subprogram Id, ignoring")
-            return
-        self.program_stack.append(id)
+            return None
+        if pr.num < 1:
+            return None
+        self.program_stack.append(id + 1)
         pid = pr.program
-        return self.subprograms[pid]
+        subprogram = self.subprograms[pid]
+
+        for i in range(pr.num - 1):
+            self.program_stack.append(subprogram)
+        print(self.program_stack)
+        return subprogram
 
     def __return_from_subprogramm(self):
         if len(self.program_stack) == 0:
             return self.__program_end()
-        tid = self.program_stack[-1] + 1
-        self.program_stack = self.program_stack[:-2]
+        tid = self.program_stack[-1]
+        self.program_stack = self.program_stack[:-1]
         return tid
 
     #endregion
