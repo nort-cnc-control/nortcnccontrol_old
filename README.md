@@ -6,11 +6,11 @@ This repository contains several components:
 * UI
 * G-Code parser
 * G-Code processor, which builds commands for cnc realtime board
-* Interface for cnc realtime board
+* Interface for realtime operations board
 * Interface for spindel frequency changer.
 
 Running in emulation mode
 
 $ ./cnccontrol.py -e
 
-In this case commands for realtime board and frequency changer will be printed in terminal
+In this case commands for realtime operations board and frequency changer will be printed in terminal
