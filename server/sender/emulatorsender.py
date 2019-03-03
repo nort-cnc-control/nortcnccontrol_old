@@ -7,6 +7,8 @@ class EmulatorSender(object):
     completed = event.EventEmitter()
     started = event.EventEmitter()
     dropped = event.EventEmitter()
+    mcu_reseted = event.EventEmitter()
+    has_slots = threading.Event()
     
     has_slots = threading.Event()
 

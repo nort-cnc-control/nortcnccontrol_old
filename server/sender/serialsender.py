@@ -11,7 +11,7 @@ class SerialSender(object):
 
     class SerialReceiver(threading.Thread):
 
-        def __init__(self, ser, finish_event, ev_completed, ev_started, ev_slots, ev_dropped):
+        def __init__(self, ser, finish_event, ev_completed, ev_started, ev_slots, ev_dropped, ev_protocolerror, ev_mcu_reseted):
             threading.Thread.__init__(self)
             self.ser = ser
             self.finish_event = finish_event
@@ -25,13 +25,24 @@ class SerialSender(object):
             self.ev_started = ev_started
             self.ev_slots = ev_slots
             self.ev_dropped = ev_dropped
+            self.ev_protocolerror = ev_protocolerror
+            self.ev_mcu_reseted = ev_mcu_reseted
 
         def run(self):
             while not self.finish_event.is_set():
-                ans = self.ser.readline().decode("utf8")
+                resp = None
+                try:
+                    resp = self.ser.readline()
+                    ans = resp.decode("utf8")
+                except Exception as e:
+                    print("Can not decode answer")
+                    self.ev_protocolerror(resp)
+                    continue
+
                 ans = str(ans).lstrip(chr(0)).strip()
                 print("Received answer: [%s], len = %i" % (ans, len(ans)))
                 if ans == "Hello":
+                    self.ev_mcu_reseted()
                     continue
 
                 match = self.restarted.match(ans)
@@ -81,6 +92,8 @@ class SerialSender(object):
     completed = event.EventEmitter()
     dropped = event.EventEmitter()
     started = event.EventEmitter()
+    protocol_error = event.EventEmitter()
+    mcu_reseted = event.EventEmitter()
     has_slots = threading.Event()
     
     def __init__(self, port, bdrate):
@@ -94,7 +107,8 @@ class SerialSender(object):
         self.__ser = serial.Serial(self.port, self.baudrate,
                                  bytesize=8, parity='N', stopbits=1)
         self.__listener = self.SerialReceiver(self.__ser, self.__finish_event,
-                                              self.completed, self.started, self.__slots, self.dropped)
+                                              self.completed, self.started, self.__slots,
+                                              self.dropped, self.protocol_error, self.mcu_reseted)
         
         self.__slots += self.__on_slots
         self.__listener.start()
