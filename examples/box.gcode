@@ -1,0 +1,389 @@
+G74
+G30
+
+G54
+G92 Z1.5
+
+G0 Z30
+
+G0 Y40
+G0 X52
+
+G92 X0 Y0 Z30
+
+F500
+M3 S12000
+
+(cut left)
+G0 Z30
+G0 X-5 Y-3
+G0 Z20
+M97 P3 L4
+
+(cut right)
+G0 Z30
+G0 X50 Y-3
+G0 Z20
+M97 P4 L4
+
+(cut contour)
+G0 Z30
+G0 X-5 Y-3
+G0 Z20
+M97 P5 L4
+
+(cut top contour)
+G0 Z30
+G0 X-5 Y-3
+G0 Z20
+M97 P6
+
+G0 Z30
+G0 X-3 Y-3
+
+(cut internal)
+G0 Z20
+M97 P7 L5
+
+(clear top)
+G0 Z30
+G0 X-3 Y-3
+M97 P8
+
+(cut lowest layer)
+G0 Z30
+G0 X-3 Y-3
+M97 P9
+
+(return to start point)
+G0 Z30
+G0 X-3 Y-3
+
+(start box cap)
+G0 X-3 Y62
+G92 X-3 Y-3 Z30
+
+(cut contour)
+G0 Z30
+G0 X50 Y-3
+G0 Z20
+M97 P5 L4
+
+(remove top. leave 10 mm)
+G0 Z21
+M97 P10 L2
+G0 Z15.5
+M97 P10
+
+(remove internal)
+G0 X6 Y6
+G0 Z10
+M97 P11 L3
+
+(clear top)
+G0 Z10.5
+M97 P12
+
+(cut lowest layer)
+G0 Z30
+G0 X-3 Y-3
+M97 P9
+
+G0 Z30
+G0 X-3 Y-3
+
+G53
+G0 X0 Y0
+
+M5
+M2
+
+( left side 2 mm, X = -5, Y = -3 at begin )
+N1
+G0 X-5
+G0 Y127
+G1 X-3
+Y-3
+G0 X-5 Y-3
+M99
+
+( left side, X = -5, Y = -3 at begin )
+N3
+G91
+G0 Z-5
+G90
+M97 P1
+M99
+
+(right side 2mm, X = 60, Y = -3 at begin)
+N2
+G1 X43
+Y127
+G0 X60 Y-3
+M99
+
+( right side, X = 60, Y = -3 at begin )
+N4
+G91
+G0 Z-5
+G90
+M97 P2
+M99
+
+(contour)
+N5
+G91
+G0 Z-4
+G90
+
+G1 X-3
+X43
+Y62
+X-3
+Y-3
+
+G0 X-3 Y3
+G2 X3 Y-3 R6
+
+G0 X37 Y-3
+G2 X43 Y3 R6
+
+G0 X43 Y56
+G2 X37 Y62 R6
+
+G0 X3 Y62
+G2 X-3 Y56 R6
+
+G0 X-5 Y-3
+
+M99
+
+(top contour)
+N6
+G91
+G0 Z-5
+G90
+
+G1 X0 Y0
+X40
+Y59
+X0
+Y0
+
+G0 X0 Y6
+G2 X6 Y0 R6
+
+G0 X34 Y0
+G2 X40 Y6 R6
+
+G0 X40 Y53
+G2 X34 Y59 R6
+
+G0 X6 Y59
+G2 X0 Y53 R6
+
+G0 X-5 Y-3
+M99
+
+(internal)
+N7
+G0 X9 Y9
+
+G91
+G1 Y3 Z-3
+G90
+G1 Y9
+
+G1 Y50
+X31
+Y9
+X9
+
+G0 Y50
+G1 X12
+Y9
+
+G0 Y50
+G1 X15
+Y9
+
+G0 Y50
+G1 X18
+Y9
+
+G0 Y50
+G1 X21
+Y9
+
+G0 Y50
+G1 X24
+Y9
+
+G0 Y50
+G1 X27
+Y9
+
+M99
+
+(clear top)
+N8
+G0 Z19.5
+G1 X3 Y3
+Y56
+X37
+Y3
+X3
+
+G1 X6 Y6
+Y53
+X34
+Y6
+X6
+M99
+
+(cutting lowest layer)
+N9
+G0 Z30
+
+G0 X50 Y-3
+G0 Z0
+G1 X26
+G0 Z2
+G0 X-3
+G0 Z0
+G1 X14
+
+G0 Z30
+
+G0 X50 Y62
+G0 Z0
+G1 X26
+G0 Z2
+G0 X-3
+G0 Z0
+G1 X14
+
+G0 Z30
+G0 X-3 Y3
+
+G0 Z0
+G2 X3 Y-3 R6
+G0 Z2
+
+G0 X37 Y-3
+G0 Z0
+G2 X43 Y3 R6
+
+G0 Y56
+G2 X37 Y62 R6
+
+G0 Z2
+G0 X3 Y62
+G0 Z0
+
+G2 X-3 Y56 R6
+
+G0 Z30
+M99
+
+(remove top)
+N10
+
+G91
+G0 Z-5
+G90
+
+G1 X0
+Y59
+X3
+Y0
+X6
+Y59
+X9
+Y0
+X12
+Y59
+X15
+Y0
+X18
+Y59
+X21
+Y0
+X24
+Y59
+X27
+Y0
+X30
+Y59
+X33
+Y0
+X36
+Y59
+X40
+Y0
+G0 X-3 Y-3
+M99
+
+(remove internal)
+N11
+
+G91
+G1 Y3 Z-2
+G90
+Y53
+X34
+Y6
+X6
+Y9
+G0 Y53
+X9
+Y6
+G0 Y53
+X12
+Y6
+G0 Y53
+X15
+Y6
+G0 Y53
+X18
+Y6
+G0 Y53
+X21
+Y6
+G0 Y53
+X24
+Y6
+G0 Y53
+X27
+Y6
+G0 Y53
+X30
+Y6
+G0 Y53
+X33
+Y6
+G0 X6 Y6
+
+M99
+
+(clear top)
+N12
+
+G0 X0 Y0
+G91
+G1 Y1 Z-0.5
+G90
+Y59
+X40
+Y0
+X0
+Y1
+
+X3 Y3
+Y56
+X37
+Y3
+X3
+
+G0 X-3 Y-3
+M99
