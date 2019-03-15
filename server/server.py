@@ -78,9 +78,9 @@ class Controller(object):
         for line in lines:
             frame = self.parser.parse(line)
             frames.append(frame)
-        self.machine.Load(frames)
         self.__emit_message({"type":"loadlines", "lines":lines})
-
+        self.machine.Load(frames)
+        
     def __print_state(self, message = ""):
         self.__emit_message({
             "type" : "state",
