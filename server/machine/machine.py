@@ -132,9 +132,9 @@ class Machine(object):
         actions = []
         while self.__has_cmds() and self.table_sender.has_slots.is_set():
             action = self.program.actions[self.iter][1]
-            actions.append(action)
             if not action.caching:
                 return actions, True
+            actions.append(action)
             cont = action.run()
             self.iter += 1
             if not cont:
@@ -144,16 +144,17 @@ class Machine(object):
     def __process_block(self):
         actions, cont = self.__send_cached_commands()
         if not cont:
-            return actions, False
+            return actions, None, False
 
         if self.__has_cmds():
             action = self.program.actions[self.iter][1]
-            cont = action.run()
+            if action.caching:
+                return actions, None, True
+
             self.iter += 1
-            actions.append(action)
-            return actions, cont
+            return actions, action, True
         
-        return actions, True
+        return actions, None, True
 
     def WorkContinue(self):
         self.stop = False
@@ -163,12 +164,19 @@ class Machine(object):
             return
 
         while self.__has_cmds() and not self.stop:
-            actions, cont = self.__process_block()
+            actions, ncaction, cont = self.__process_block()
             for action in actions:
                 if self.reset:
                     self.reset = False
                     return
-                action.completed.wait()
+                print("Waiting for table action %i" % action.Nid)
+                action.ready.wait()
+                print("Table action %i ready" % action.Nid)
+
+            if ncaction is not None and cont:
+                cont = ncaction.run()
+                if cont:
+                    ncaction.ready.wait()
 
             if not cont:
                 if not self.stop:

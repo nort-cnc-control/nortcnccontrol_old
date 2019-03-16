@@ -36,12 +36,15 @@ class Spindel_N700E(object):
         self.__write_register(self.__speed_register, int(speed / 60.0 * 100))
 
     def start_forward(self):
+        print("Start spindel forward")
         self.__write_register(self.__run_register, self.__run_forward)
 
     def start_reverse(self):
+        print("Start spindel reverse")
         self.__write_register(self.__run_register, self.__run_reverse)
 
     def stop(self):
+        print("Stop spindel") 
         self.__write_register(self.__run_register, self.__run_stop)
 
 #client = Spindel_N700E("/dev/ttyUSB1", 1)
