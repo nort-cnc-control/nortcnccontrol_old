@@ -59,12 +59,15 @@ class Machine(object):
         self.line_selected  = event.EventEmitter()
         self.tool_selected  = event.EventEmitter()
         self.program = None
+        self.reset = False
+        self.action_rdy = threading.Event()
         self.work_init()
         print("done")
 
     def work_init(self):
         self.stop = True
         self.iter = 0
+        self.reset = False
         self.display_paused = False
         if self.program:
             for (_, action, _) in self.program.actions:
@@ -162,6 +165,9 @@ class Machine(object):
         while self.__has_cmds() and not self.stop:
             actions, cont = self.__process_block()
             for action in actions:
+                if self.reset:
+                    self.reset = False
+                    return
                 action.completed.wait()
 
             if not cont:
@@ -169,10 +175,8 @@ class Machine(object):
                     if self.display_paused:
                         self.paused(self.display_paused)
                         self.display_paused = False
-                    return
-                else:
-                    return
-
+                print("Exit")
+                return
 
     def WorkStart(self):
         if not self.stop:
@@ -182,6 +186,7 @@ class Machine(object):
 
     def Reset(self):
         print("RESET")
+        self.reset = True
         self.work_init()
 
     def WorkStop(self):
