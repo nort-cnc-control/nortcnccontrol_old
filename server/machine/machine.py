@@ -122,36 +122,57 @@ class Machine(object):
         act.completed.wait()
         self.stop = True
 
+    def __has_cmds(self):
+        return self.iter < len(self.program.actions)
+
+    def __send_cached_commands(self):
+        actions = []
+        while self.__has_cmds() and self.table_sender.has_slots.is_set():
+            action = self.program.actions[self.iter][1]
+            actions.append(action)
+            if not action.caching:
+                return actions, True
+            cont = action.run()
+            self.iter += 1
+            if not cont:
+                return actions, False
+        return actions, True
+
+    def __process_block(self):
+        actions, cont = self.__send_cached_commands()
+        if not cont:
+            return actions, False
+
+        if self.__has_cmds():
+            action = self.program.actions[self.iter][1]
+            cont = action.run()
+            self.iter += 1
+            actions.append(action)
+            return actions, cont
+        
+        return actions, True
+
     def WorkContinue(self):
         self.stop = False
         self.running()
         if self.program is None or len(self.program.actions) == 0:
             self.__finished(None)
-            return True
-        action = None
-        while self.iter < len(self.program.actions) and not self.stop:
-            action = self.program.actions[self.iter][1]
-            if not action.caching:
-                # we should wait until previous actions are ready
-                for i in range(self.iter):
-                    prevframe = self.program.actions[i][1]
-                    #print("waiting for previous frame: %i" % prevframe.Nid)
-                    prevframe.ready.wait()
-                print("previous frames are ready")
+            return
 
-            self.table_sender.has_slots.wait()
-            cont = action.run()
-            self.iter += 1
+        while self.__has_cmds() and not self.stop:
+            actions, cont = self.__process_block()
+            for action in actions:
+                action.completed.wait()
 
-            if not cont and not self.stop:
-                if self.display_paused:
-                    self.paused(self.display_paused)
-                self.display_paused = False
-                return False
-        action.completed.wait()
-        if not self.stop:
-            self.finished()
-        return True
+            if not cont:
+                if not self.stop:
+                    if self.display_paused:
+                        self.paused(self.display_paused)
+                        self.display_paused = False
+                    return
+                else:
+                    return
+
 
     def WorkStart(self):
         if not self.stop:
