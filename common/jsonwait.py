@@ -31,16 +31,16 @@ class JsonReceiver(object):
     def receive_message(self, wait=True):
         msg = self.__acquire_msg()
         if msg != None:
-            return msg
+            return msg, False
         while True:
             ser = self.sock.recv(1024)
             if ser is None or len(ser) == 0:
-                return None
+                return None, True
             self.buf += ser
             msg = self.__acquire_msg()
             if msg != None or wait == False:
-                return msg
-        return None
+                return msg, False
+        return None, True
 
 class JsonSender(object):
 

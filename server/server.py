@@ -96,8 +96,8 @@ class Controller(object):
             self.msg_sender = common.jsonwait.JsonSender(self.connection)
             while self.running:
                 print("Waiting command")
-                msg = self.msg_receiver.receive_message()
-                if msg is None:
+                msg, dis = self.msg_receiver.receive_message()
+                if dis:
                     self.connection.close()
                     break
 

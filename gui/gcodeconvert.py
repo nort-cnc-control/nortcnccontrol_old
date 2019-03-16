@@ -109,7 +109,10 @@ class Controller(object):
         
         while True:
             try:
-                msg = self.msg_receiver.receive_message(wait=False)
+                msg, dis = self.msg_receiver.receive_message(wait=False)
+                if dis:
+                    print("Disconnect")
+                    return False
                 if msg is None:
                     return True
             except:
