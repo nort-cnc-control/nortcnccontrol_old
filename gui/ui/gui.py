@@ -17,6 +17,9 @@ class Interface(object):
 
     class CNCWindow(wx.Frame):
 
+        def __reset(self, arg):
+            self.reset_clicked()
+
         def __start(self, arg):
             self.start_clicked()
 
@@ -37,6 +40,7 @@ class Interface(object):
 
         def __init__(self, parent):
             self.loaded = event.EventEmitter()
+            self.reset_clicked = event.EventEmitter()
             self.start_clicked = event.EventEmitter()
             self.continue_clicked = event.EventEmitter()
             self.pause_clicked = event.EventEmitter()
@@ -128,6 +132,16 @@ class Interface(object):
 
             btnsizer.Add((-1, 20))
 
+            self.reset_btn = wx.Button(button_panel, label='Reset')
+            self.reset_btn.SetBackgroundColour(wx.Colour(255, 0, 0))
+            self.reset_btn.SetForegroundColour(wx.Colour(255, 255, 255))
+            self.reset_btn.SetFont(wx.Font(18, wx.DEFAULT, wx.NORMAL, wx.BOLD))
+            btnsizer.Add(self.reset_btn)
+            self.reset_btn.Bind(wx.EVT_BUTTON, self.__reset)
+
+            btnsizer.Add((-1, 20))
+
+
             self.home_btn = wx.Button(button_panel, label='Home XYZ')
             btnsizer.Add(self.home_btn)
             self.home_btn.Bind(wx.EVT_BUTTON, self.__home)
@@ -184,6 +198,7 @@ class Interface(object):
         self.window = self.CNCWindow(None)
 
         self.load_file = self.window.loaded
+        self.reset_clicked = self.window.reset_clicked
         self.start_clicked = self.window.start_clicked
         self.continue_clicked = self.window.continue_clicked
         self.pause_clicked = self.window.pause_clicked

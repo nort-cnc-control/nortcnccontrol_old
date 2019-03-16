@@ -30,6 +30,7 @@ class Controller(object):
 
         self.control = gui.Interface()
         self.control.load_file += self.__load_file
+        self.control.reset_clicked += self.__reset
         self.control.start_clicked += self.__start
         self.control.continue_clicked += self.__continue
         self.control.stop_clicked += self.__stop

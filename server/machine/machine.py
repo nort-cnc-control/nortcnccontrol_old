@@ -126,7 +126,7 @@ class Machine(object):
         self.stop = False
         self.running()
         if self.program is None or len(self.program.actions) == 0:
-            self.finished()
+            self.__finished(None)
             return True
         action = None
         while self.iter < len(self.program.actions) and not self.stop:
@@ -160,6 +160,7 @@ class Machine(object):
         return self.WorkContinue()
 
     def Reset(self):
+        print("RESET")
         self.work_init()
 
     def WorkStop(self):
