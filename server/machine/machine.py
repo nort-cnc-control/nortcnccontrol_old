@@ -163,15 +163,20 @@ class Machine(object):
             self.__finished(None)
             return
 
+        lastaction = None
         while self.__has_cmds() and not self.stop:
             actions, ncaction, cont = self.__process_block()
             for action in actions:
                 if self.reset:
                     self.reset = False
                     return
-                print("Waiting for table action %i" % action.Nid)
-                action.ready.wait()
-                print("Table action %i ready" % action.Nid)
+                if action.caching and not action.dropped:
+                    lastaction = action
+
+            if lastaction is not None and ncaction is not None:
+                print("Waiting for table action %i" % lastaction.Nid)
+                lastaction.ready.wait()
+                print("Table action %i ready" % lastaction.Nid)
 
             if ncaction is not None and cont:
                 cont = ncaction.run()
@@ -184,7 +189,11 @@ class Machine(object):
                         self.paused(self.display_paused)
                         self.display_paused = False
                 print("Exit")
-                return
+                break
+        if lastaction is not None and ncaction is not None:
+            print("Waiting for table action %i" % lastaction.Nid)
+            lastaction.ready.wait()
+            print("Table action %i ready" % lastaction.Nid)
 
     def WorkStart(self):
         if not self.stop:

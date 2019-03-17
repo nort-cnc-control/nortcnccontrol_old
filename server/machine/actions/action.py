@@ -113,6 +113,9 @@ class MCUAction(Action):
         self.table_sender.queued += self.__received_queued
         cmd = self.command()
         self.completed.clear()
+        if not self.table_sender.has_slots.is_set():
+            print("Waiting for slots")
+            self.table_sender.has_slots.wait()
         self.table_sender.send_command(cmd)
         self.table_sender.queued -= self.__received_queued
         return True
