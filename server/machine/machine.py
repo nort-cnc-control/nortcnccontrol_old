@@ -133,28 +133,27 @@ class Machine(object):
         while self.__has_cmds() and self.table_sender.has_slots.is_set():
             action = self.program.actions[self.iter][1]
             if not action.caching:
-                return actions, True
+                return actions
             actions.append(action)
-            cont = action.run()
+            action.run()
             self.iter += 1
-            if not cont:
-                return actions, False
-        return actions, True
+        return actions
 
     def __process_block(self):
-        actions, cont = self.__send_cached_commands()
-        if not cont:
-            return actions, None, False
-
+        actions = self.__send_cached_commands()
         if self.__has_cmds():
             action = self.program.actions[self.iter][1]
             if action.caching:
-                return actions, None, True
+                return actions, None
 
             self.iter += 1
-            return actions, action, True
+            return actions, action
         
-        return actions, None, True
+        return actions, None
+
+    def __wait(self, ev):
+        ev.wait()
+        return True
 
     def WorkContinue(self):
         self.stop = False
@@ -165,34 +164,31 @@ class Machine(object):
 
         lastaction = None
         while self.__has_cmds() and not self.stop:
-            actions, ncaction, cont = self.__process_block()
+            actions, ncaction = self.__process_block()
             for action in actions:
-                if self.reset:
-                    self.reset = False
-                    return
                 if action.caching and not action.dropped:
                     lastaction = action
 
-            if lastaction is not None and ncaction is not None:
+            if ncaction is None:
+                continue
+
+            if lastaction is not None:
                 print("Waiting for table action %i" % lastaction.Nid)
-                lastaction.ready.wait()
+                if not self.__wait(lastaction.ready):
+                    return
                 print("Table action %i ready" % lastaction.Nid)
+                lastaction = None
 
-            if ncaction is not None and cont:
-                cont = ncaction.run()
-                if cont:
-                    ncaction.ready.wait()
-
+            cont = ncaction.run()
+            if not self.__wait(ncaction.ready):
+                return
             if not cont:
-                if not self.stop:
-                    if self.display_paused:
-                        self.paused(self.display_paused)
-                        self.display_paused = False
-                print("Exit")
-                break
-        if lastaction is not None and ncaction is not None:
+                return
+
+        if lastaction is not None:
             print("Waiting for table action %i" % lastaction.Nid)
-            lastaction.ready.wait()
+            if not self.__wait(lastaction.ready):
+                return
             print("Table action %i ready" % lastaction.Nid)
 
     def WorkStart(self):
