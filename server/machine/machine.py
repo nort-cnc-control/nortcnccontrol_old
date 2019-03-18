@@ -59,6 +59,7 @@ class Machine(object):
         self.line_selected  = event.EventEmitter()
         self.tool_selected  = event.EventEmitter()
         self.program = None
+        self.lastaction = None
         self.reset = False
         self.action_rdy = threading.Event()
         self.work_init()
@@ -69,11 +70,12 @@ class Machine(object):
         self.iter = 0
         self.reset = False
         self.display_paused = False
+        self.lastaction = None
         if self.program:
             for (_, action, _) in self.program.actions:
                 action.completed.clear()
-                action.ready.clear()
-        
+                action.finished.clear()
+
     #region Add UI action 
 
     def __paused(self):
@@ -151,10 +153,6 @@ class Machine(object):
         
         return actions, None
 
-    def __wait(self, ev):
-        ev.wait()
-        return True
-
     def WorkContinue(self):
         self.stop = False
         self.running()
@@ -162,35 +160,41 @@ class Machine(object):
             self.__finished(None)
             return
 
-        lastaction = None
+        self.lastaction = None
         while self.__has_cmds() and not self.stop:
             actions, ncaction = self.__process_block()
             for action in actions:
                 if action.caching and not action.dropped:
-                    lastaction = action
+                    self.lastaction = action
 
             if ncaction is None:
                 continue
 
-            if lastaction is not None:
-                print("Waiting for table action %i" % lastaction.Nid)
-                if not self.__wait(lastaction.ready):
+            if self.lastaction is not None:
+                print("Waiting for table action %i" % self.lastaction.Nid)
+                self.lastaction.finished.wait()
+                if self.lastaction.breaked:
                     return
-                print("Table action %i ready" % lastaction.Nid)
-                lastaction = None
+                print("Table action %i finished" % self.lastaction.Nid)
+                self.lastaction = None
 
-            cont = ncaction.run()
-            if not self.__wait(ncaction.ready):
+            self.lastaction = ncaction
+            cont = self.lastaction.run()
+            self.lastaction.finished.wait()
+            if self.lastaction.breaked:
                 return
             if not cont:
+                self.lastaction = None
                 return
-
-        if lastaction is not None:
-            print("Waiting for table action %i" % lastaction.Nid)
-            if not self.__wait(lastaction.ready):
+            
+        if self.lastaction is not None and not self.lastaction.finished.is_set():
+            print("Waiting for table action %i" % self.lastaction.Nid)
+            self.lastaction.finished.wait()
+            if self.lastaction.breaked:
                 return
-            print("Table action %i ready" % lastaction.Nid)
+            print("Table action %i finished" % self.lastaction.Nid)
         self.stop = True
+        self.lastaction = None
 
     def WorkStart(self):
         if not self.stop:
@@ -201,6 +205,8 @@ class Machine(object):
     def Reset(self):
         print("RESET")
         self.reset = True
+        if self.lastaction is not None:
+            self.lastaction.abort()
         self.work_init()
 
     def WorkStop(self):

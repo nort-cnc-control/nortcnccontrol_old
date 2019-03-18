@@ -164,6 +164,6 @@ class Program(object):
 
     def insert_program_end(self, cb):
         act = program.Finish()
-        act.finished += cb
+        act.performed += cb
         self.__add_action(act)
     #endregion control

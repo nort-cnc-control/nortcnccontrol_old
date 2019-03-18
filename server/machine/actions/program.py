@@ -6,9 +6,8 @@ class Finish(action.InstantAction):
 
     def __init__(self, **kwargs):
         action.InstantAction.__init__(self, **kwargs)
-        self.finished = event.EventEmitter()
+        self.performed = event.EventEmitter()
 
     def perform(self):
-        self.finished(self)
+        self.performed(self)
         return False
-

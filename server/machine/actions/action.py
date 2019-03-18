@@ -8,8 +8,9 @@ from common import event
 class Action(object):
     def __init__(self, **kwargs):
         self.dropped = False
+        self.breaked = False
         self.completed = threading.Event()
-        self.ready = threading.Event()
+        self.finished = threading.Event()
         self.action_completed = event.EventEmitter()
         self.action_started = event.EventEmitter()
         self.caching = False
@@ -19,6 +20,10 @@ class Action(object):
 
     def dispose(self):
         pass
+
+    def abort(self):
+        self.breaked = True
+        self.finished.set()
 
     @abc.abstractmethod
     def act(self):
@@ -38,7 +43,7 @@ class InstantAction(Action):
         self.action_started(self)
         res = self.perform()
         self.completed.set()
-        self.ready.set()
+        self.finished.set()
         self.action_completed(self)
         return res
 
@@ -60,7 +65,7 @@ class ToolAction(Action):
         self.action_started(self)
         res = self.perform()
         self.completed.set()
-        self.ready.set()
+        self.finished.set()
         self.action_completed(self)
         return res
 
@@ -99,14 +104,14 @@ class MCUAction(Action):
         if nid == self.Nid:
             print("Action %i dropped" % nid)
             self.dropped = True
-            self.ready.set()
+            self.finished.set()
 
     def __received_completed(self, nid):
         nid = int(nid)
         if nid == self.Nid:
             print("Action %i completed" % nid)
             self.completed.set()
-            self.ready.set()
+            self.finished.set()
             self.action_completed(self)
 
     def act(self):
