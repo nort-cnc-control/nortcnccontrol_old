@@ -190,6 +190,7 @@ class Machine(object):
             if not self.__wait(lastaction.ready):
                 return
             print("Table action %i ready" % lastaction.Nid)
+        self.stop = True
 
     def WorkStart(self):
         if not self.stop:
