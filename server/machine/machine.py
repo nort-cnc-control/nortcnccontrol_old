@@ -20,6 +20,7 @@ from .actions import pause
 from .actions import tools
 from .actions import spindle
 from .actions import program
+from .actions import system
 
 import common
 from common import event
@@ -190,7 +191,7 @@ class Machine(object):
         if self.lastaction is not None and not self.lastaction.finished.is_set():
             print("Waiting for table action %i" % self.lastaction.Nid)
             self.lastaction.finished.wait()
-            if self.lastaction.breaked:
+            if self.lastaction is None or self.lastaction.breaked:
                 return
             print("Table action %i finished" % self.lastaction.Nid)
         self.stop = True
@@ -204,6 +205,8 @@ class Machine(object):
 
     def Reset(self):
         print("RESET")
+        act = system.TableReset(sender=self.table_sender)
+        act.run()
         self.reset = True
         if self.lastaction is not None:
             self.lastaction.abort()

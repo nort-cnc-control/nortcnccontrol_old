@@ -21,6 +21,8 @@ import os
 import socket
 import json
 
+import threading
+
 class Controller(object):
     def __emit_message(self, msg):
         try:
@@ -88,6 +90,10 @@ class Controller(object):
             "message" : message
         })
 
+    def __run_cmd(self, cmd, *args):
+        t = threading.Thread(target=cmd, args=args)
+        t.start()
+
     def run(self):
         self.running = True
         while self.running:
@@ -109,17 +115,17 @@ class Controller(object):
                     self.__print_state()
                 elif msg["type"] == "command":
                     if msg["command"] == "reset":
-                        self.machine.Reset()
+                        self.__run_cmd(self.machine.Reset)
                         self.state = "init"
                         self.__print_state()
                     elif msg["command"] == "start":
                         self.state = "running"
                         self.__print_state()
-                        self.machine.WorkStart()
+                        self.__run_cmd(self.machine.WorkStart)
                     elif msg["command"] == "continue":
                         self.state = "running"
                         self.__print_state()
-                        self.machine.WorkContinue()
+                        self.__run_cmd(self.machine.WorkContinue)
                     elif msg["command"] == "exit":
                         self.state = "exit"
                         self.__print_state()
@@ -130,19 +136,19 @@ class Controller(object):
                         self.state = "init"
                         self.__print_state("G-Code loaded")
                     elif msg["command"] == "stop":
-                        self.machine.WorkStop()
+                        self.__run_cmd(self.machine.WorkStop)
                         self.state = "init"
                         self.__print_state()
                     elif msg["command"] == "home":
                         self.state = "running"
                         self.__print_state()
-                        self.machine.MakeHoming(True, True, True)
+                        self.__run_cmd(self.machine.MakeHoming, True, True, True)
                         self.state = "init"
                         self.__print_state()
                     elif msg["command"] == "probe":
                         self.state = "running"
                         self.__print_state()
-                        self.machine.MakeProbeZ()
+                        self.__run_cmd(self.machine.MakeProbeZ)
                         self.state = "init"
                         self.__print_state()
                     else:
