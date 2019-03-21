@@ -16,7 +16,7 @@ class EmulatorSender(object):
         self.id = 0
         self.has_slots.set()
     
-    def send_command(self, command):
+    def send_command(self, command, wait=True):
         cmd = ("N%i " % self.id) + command + "\n"
         print("Command %s" % cmd)
         self.queued(self.id)
@@ -25,3 +25,6 @@ class EmulatorSender(object):
         self.completed(self.id)
         self.id += 1
         return oid
+
+    def reset(self):
+        self.id = 0

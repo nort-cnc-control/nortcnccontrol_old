@@ -97,8 +97,9 @@ class SerialSender(object):
     has_slots = threading.Event()
     
     def __init__(self, port, bdrate):
-        self.__id = 0    
+        self.__id = 0
         self.__qans = threading.Event()
+        self.__reseted = False
         self.__slots = event.EventEmitter()
         self.__finish_event = threading.Event()
     
@@ -124,18 +125,27 @@ class SerialSender(object):
             return
         self.__qans.set()
 
-    def send_command(self, command):
+    def send_command(self, command, wait=True):
+        self.__reseted = False
         self.__qans.clear()
+        self.queued(self.__id)
         cmd = ("N%i " % self.__id) + command + "\n"
         print("Sending command %s" % cmd)
-        self.queued(self.__id)
         self.__ser.write(bytes(cmd, "UTF-8"))
         self.__ser.flush()
         oid = self.__id
-        self.__qans.wait()
+        if wait:
+            self.__qans.wait()
+            if self.__reseted:
+                return -1
         self.__id += 1
         return oid
 
     def close(self):
         self.__finish_event.set()
         self.__ser.close()
+
+    def reset(self):
+        self.__reseted = True
+        self.__id = 0
+        self.__qans.set()

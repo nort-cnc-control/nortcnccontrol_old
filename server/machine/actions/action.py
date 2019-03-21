@@ -14,6 +14,7 @@ class Action(object):
         self.action_completed = event.EventEmitter()
         self.action_started = event.EventEmitter()
         self.caching = False
+        self.is_pause = False
 
     def run(self):
         return self.act()
@@ -94,7 +95,7 @@ class MCUAction(Action):
         
     def __received_queued(self, nid):
         self.Nid = int(nid)
-
+        
     def __received_started(self, nid):
         if int(nid) == self.Nid:
             self.action_started(self)
@@ -102,7 +103,6 @@ class MCUAction(Action):
     def __received_dropped(self, nid):
         nid = int(nid)
         if nid == self.Nid:
-            print("Action %i dropped" % nid)
             self.dropped = True
             self.finished.set()
 

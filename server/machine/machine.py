@@ -51,7 +51,8 @@ class Machine(object):
 
     def __init__(self, table_sender, spindle_sender):
         print("Creating machine...")
-        self.stop           = True
+        self.is_running        = False
+        self.is_finished    = False
         self.table_sender   = table_sender
         self.spindle_sender = spindle_sender
         self.running        = event.EventEmitter()
@@ -67,7 +68,8 @@ class Machine(object):
         print("done")
 
     def work_init(self):
-        self.stop = True
+        print("INIT")
+        self.is_running = False
         self.iter = 0
         self.reset = False
         self.display_paused = False
@@ -81,12 +83,14 @@ class Machine(object):
 
     def __paused(self):
         self.display_paused = True
+        self.paused("Press continue")
 
     def __tool_selected(self, tool):
         self.tool_selected(tool)
 
     def __finished(self, action):
-        self.stop = True
+        self.is_running = False
+        self.is_finished = True
         self.finished()
 
     def __action_started(self, action):
@@ -111,94 +115,154 @@ class Machine(object):
 
 
     def MakeHoming(self, x, y, z):
-        if not self.stop:
+        if self.is_running:
             raise Exception("Machine should be stopped")
-        self.stop = False
+        self.is_running = True
         act = actions.homing.ToBeginMovement(self.table_sender)
         act.run()
         act.completed.wait()
-        self.stop = True
+        self.is_running = False
 
     def MakeProbeZ(self):
-        if not self.stop:
+        if self.is_running:
             raise Exception("Machine should be stopped")
-        self.stop = False
+        self.is_running = True
         act = actions.homing.ProbeMovement(self.table_sender)
         act.run()
         act.completed.wait()
-        self.stop = True
+        self.is_running = False
 
     def __has_cmds(self):
         return self.iter < len(self.program.actions)
 
-    def __send_cached_commands(self):
+    def __get_cacheable(self):
         actions = []
-        while self.__has_cmds() and self.table_sender.has_slots.is_set():
+        while self.__has_cmds():
             action = self.program.actions[self.iter][1]
             if not action.caching:
                 return actions
             actions.append(action)
-            action.run()
             self.iter += 1
         return actions
-
-    def __process_block(self):
-        actions = self.__send_cached_commands()
-        if self.__has_cmds():
-            action = self.program.actions[self.iter][1]
-            if action.caching:
-                return actions, None
-
-            self.iter += 1
-            return actions, action
         
-        return actions, None
+    def __get_action(self):
+        if not self.__has_cmds():
+            return None
+        action = self.program.actions[self.iter][1]
+        self.iter += 1
+        return action
+
+    class StateMachine(Enum):
+        WorkContinue = 1
+        ProcessBlock = 2
+        WaitSlots = 3
+        SendCacheable = 4
+        WaitCacheable = 5
+        ProcessNotCacheable = 6
+        RunNotCacheable = 7
+        WaitNotCacheable = 8
+        Interrupt = 9
+        End = 10
+        Reseted = 11
+        WaitCommand = 12
 
     def WorkContinue(self):
-        self.stop = False
+        self.reset = False
+        self.is_running = True
+        self.is_finished = False
         self.running()
-        if self.program is None or len(self.program.actions) == 0:
-            self.__finished(None)
-            return
 
-        self.lastaction = None
-        while self.__has_cmds() and not self.stop:
-            actions, ncaction = self.__process_block()
-            for action in actions:
-                if action.caching and not action.dropped:
-                    self.lastaction = action
+        state = self.StateMachine.WorkContinue
+        actions = []
+        action = None
 
-            if ncaction is None:
+        while True:
+            print("State = ", state)
+            if state is self.StateMachine.WorkContinue:
+                if not self.__has_cmds():        
+                    state = self.StateMachine.End
+                else:
+                    state = self.StateMachine.ProcessBlock
+                    continue
+            elif state is self.StateMachine.End:
+                if not self.is_finished:
+                    self.finished()
+                break
+            elif state is self.StateMachine.Reseted:
+                self.reset = True
+                break
+            elif state is self.StateMachine.WaitCommand:
+                break
+            elif state is self.StateMachine.ProcessBlock:
+                actions = self.__get_cacheable()
+                if len(actions) > 0:
+                    self.lastaction = None
+                    state = self.StateMachine.WaitSlots
+                else:
+                    state = self.StateMachine.ProcessNotCacheable
+            elif state is self.StateMachine.ProcessNotCacheable:
+                action = self.__get_action()
+                if action.is_pause is True:
+                    state = self.StateMachine.Interrupt
+                else:
+                    state = self.StateMachine.RunNotCacheable
                 continue
-
-            if self.lastaction is not None:
-                print("Waiting for table action %i" % self.lastaction.Nid)
-                self.lastaction.finished.wait()
-                if self.lastaction.breaked:
-                    return
-                print("Table action %i finished" % self.lastaction.Nid)
-                self.lastaction = None
-
-            self.lastaction = ncaction
-            cont = self.lastaction.run()
-            self.lastaction.finished.wait()
-            if self.lastaction.breaked:
-                return
-            if not cont:
-                self.lastaction = None
-                return
+            elif state is self.StateMachine.WaitSlots:
+                self.table_sender.has_slots.wait()
+                if self.reset:
+                    state = self.StateMachine.Reseted
+                else:
+                    state = self.StateMachine.SendCacheable
+                continue
+            elif state is self.StateMachine.SendCacheable:
+                action = actions[0]
+                action.run()
+                if self.reset:
+                    state = self.StateMachine.Reseted
+                else:
+                    if not action.dropped:
+                        self.lastaction = action
+                    actions = actions[1:]
+                    if len(actions) > 0:
+                        state = self.StateMachine.WaitSlots
+                    else:
+                        state = self.StateMachine.WaitCacheable
+                continue
+            elif state is self.StateMachine.WaitCacheable:
+                if self.lastaction is not None:
+                    self.lastaction.finished.wait()
+                
+                if self.reset:
+                    state = self.StateMachine.Reseted
+                elif not self.__has_cmds():
+                    state = self.StateMachine.End
+                else:
+                    state = self.StateMachine.ProcessNotCacheable
+                continue
+            elif state is self.StateMachine.RunNotCacheable:
+                action.run()
+                state = self.StateMachine.WaitNotCacheable
+                continue
+            elif state is self.StateMachine.WaitNotCacheable:
+                action.finished.wait()
+                if self.reset:
+                    state = self.StateMachine.Reseted
+                elif self.__has_cmds():
+                    state = self.StateMachine.ProcessBlock
+                else:
+                    state = self.StateMachine.End
+                continue
+            elif state is self.StateMachine.Interrupt:
+                action.run()
+                if self.is_finished:
+                    state = self.StateMachine.End
+                else:
+                    state = self.StateMachine.WaitCommand
+                continue
+        self.is_running = False
             
-        if self.lastaction is not None and not self.lastaction.finished.is_set():
-            print("Waiting for table action %i" % self.lastaction.Nid)
-            self.lastaction.finished.wait()
-            if self.lastaction is None or self.lastaction.breaked:
-                return
-            print("Table action %i finished" % self.lastaction.Nid)
-        self.stop = True
-        self.lastaction = None
-
     def WorkStart(self):
-        if not self.stop:
+        if self.is_running:
             raise Exception("Machine should be stopped")
         self.work_init()
         return self.WorkContinue()
@@ -210,9 +274,11 @@ class Machine(object):
         self.reset = True
         if self.lastaction is not None:
             self.lastaction.abort()
+        self.table_sender.reset()
+        self.spindle_sender.stop()
         self.work_init()
 
     def WorkStop(self):
         self.work_init()
-        self.stop = True
+        self.is_running = False
         self.finished()

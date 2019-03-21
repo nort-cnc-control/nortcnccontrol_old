@@ -55,6 +55,8 @@ class Controller(object):
         self.machine.tool_selected += self.__tool_selected
         self.machine.line_selected += self.__line_selected
 
+        self.work_thread = None
+
     def __continue_on_pause(self, reason):
         # send RPC message about event
         self.state = "paused"
@@ -90,9 +92,19 @@ class Controller(object):
             "message" : message
         })
 
-    def __run_cmd(self, cmd, *args):
-        t = threading.Thread(target=cmd, args=args)
-        t.start()
+    def __run_cmd(self, cmd, *args, wait=True):
+        if not wait and self.work_thread is not None:
+            if not self.machine.is_running:
+                self.work_thread.join()
+            else:
+                print("Can not run ", cmd, " - still waiting")
+                return
+        print("RUN = ", cmd)
+        self.work_thread = threading.Thread(target=cmd, args=args)
+        self.work_thread.start()
+        if wait:
+            self.work_thread.join()
+            self.work_thread = None
 
     def run(self):
         self.running = True
@@ -121,11 +133,11 @@ class Controller(object):
                     elif msg["command"] == "start":
                         self.state = "running"
                         self.__print_state()
-                        self.__run_cmd(self.machine.WorkStart)
+                        self.__run_cmd(self.machine.WorkStart, wait=False)
                     elif msg["command"] == "continue":
                         self.state = "running"
                         self.__print_state()
-                        self.__run_cmd(self.machine.WorkContinue)
+                        self.__run_cmd(self.machine.WorkContinue, wait=False)
                     elif msg["command"] == "exit":
                         self.state = "exit"
                         self.__print_state()
@@ -142,13 +154,13 @@ class Controller(object):
                     elif msg["command"] == "home":
                         self.state = "running"
                         self.__print_state()
-                        self.__run_cmd(self.machine.MakeHoming, True, True, True)
+                        self.__run_cmd(self.machine.MakeHoming, True, True, True, wait=False)
                         self.state = "init"
                         self.__print_state()
                     elif msg["command"] == "probe":
                         self.state = "running"
                         self.__print_state()
-                        self.__run_cmd(self.machine.MakeProbeZ)
+                        self.__run_cmd(self.machine.MakeProbeZ, wait=False)
                         self.state = "init"
                         self.__print_state()
                     else:
