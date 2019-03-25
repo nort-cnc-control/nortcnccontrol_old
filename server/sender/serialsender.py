@@ -94,8 +94,9 @@ class SerialSender(object):
     started = event.EventEmitter()
     protocol_error = event.EventEmitter()
     mcu_reseted = event.EventEmitter()
+    __reseted_ev = event.EventEmitter()
     has_slots = threading.Event()
-    
+
     def __init__(self, port, bdrate):
         self.__id = 0
         self.__qans = threading.Event()
@@ -109,11 +110,15 @@ class SerialSender(object):
                                  bytesize=8, parity='N', stopbits=1)
         self.__listener = self.SerialReceiver(self.__ser, self.__finish_event,
                                               self.completed, self.started, self.__slots,
-                                              self.dropped, self.protocol_error, self.mcu_reseted)
-        
+                                              self.dropped, self.protocol_error, self.__reseted_ev)
+        self.__reseted_ev += self.__on_reset
         self.__slots += self.__on_slots
         self.__listener.start()
         self.has_slots.set()
+
+    def __on_reset(self):
+        self.has_slots.set()
+        self.mcu_reseted()
 
     def __on_slots(self, Nid, Q):
         Nid = int(Nid)
