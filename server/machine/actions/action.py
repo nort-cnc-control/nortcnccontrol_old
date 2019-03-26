@@ -138,7 +138,7 @@ class Movement(MCUAction):
     def dir1(self):
         return None
 
-    def __init__(self, feed, acc, exact_stop, **kwargs):
+    def __init__(self, feed, acc, exact_stop=True, **kwargs):
         MCUAction.__init__(self, **kwargs)
         self.exact_stop = exact_stop
         self.feed = feed
@@ -164,3 +164,13 @@ class Movement(MCUAction):
             z = delta.z
         
         return x, y, z
+
+class MCUCmd(MCUAction):
+
+    def __init__(self, cmd, cacheable=False, *args, **kwargs):
+        MCUAction.__init__(self, *args, **kwargs)
+        self.cmd = cmd
+        self.caching = cacheable
+
+    def command(self):
+        return self.cmd

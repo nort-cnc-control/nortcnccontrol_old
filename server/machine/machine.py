@@ -11,8 +11,8 @@ from enum import Enum
 from . import actions
 from . import parser
 from . import modals
+from . import program as pr
 
-from .actions import homing
 from .actions import linear
 from .actions import helix
 from .actions import action
@@ -60,10 +60,18 @@ class Machine(object):
         self.finished       = event.EventEmitter()
         self.line_selected  = event.EventEmitter()
         self.tool_selected  = event.EventEmitter()
-        self.program = None
         self.lastaction = None
         self.reset = False
         self.action_rdy = threading.Event()
+        # loaded program
+        self.user_program = None
+        # actual program
+        self.program = None
+        # special programs
+        self.z_probe_program = pr.Program(self.table_sender, self.spindle_sender)
+        self.z_probe_program.insert_z_probe()
+        self.homing_program = pr.Program(self.table_sender, self.spindle_sender)
+        self.homing_program.insert_homing()
         self.work_init()
         print("done")
 
@@ -106,31 +114,26 @@ class Machine(object):
         builder.finish_cb = self.__finished
         builder.pause_cb = self.__paused
         builder.tool_select_cb = self.__tool_selected
-        self.program = builder.build_program(frames)
-        Optimizer.optimize(self.program, config.JERKING)
-        for action in self.program.actions:
+        self.user_program = builder.build_program(frames)
+        Optimizer.optimize(self.user_program, config.JERKING)
+        for action in self.user_program.actions:
             action[1].action_started += self.__action_started
-        if len(self.program.actions) > 0:
-            self.line_selected(self.program.actions[0][2])
-
+        if len(self.user_program.actions) > 0:
+            self.line_selected(self.user_program.actions[0][2])
 
     def MakeHoming(self, x, y, z):
         if self.is_running:
             raise Exception("Machine should be stopped")
-        self.is_running = True
-        act = actions.homing.ToBeginMovement(self.table_sender)
-        act.run()
-        act.completed.wait()
-        self.is_running = False
+        self.program = self.homing_program
+        self.work_init()
+        self.WorkContinue()
 
     def MakeProbeZ(self):
         if self.is_running:
             raise Exception("Machine should be stopped")
-        self.is_running = True
-        act = actions.homing.ProbeMovement(self.table_sender)
-        act.run()
-        act.completed.wait()
-        self.is_running = False
+        self.program = self.z_probe_program
+        self.work_init()
+        self.WorkContinue()
 
     def __has_cmds(self):
         return self.iter < len(self.program.actions)
@@ -260,10 +263,15 @@ class Machine(object):
                     state = self.StateMachine.WaitCommand
                 continue
         self.is_running = False
-            
+
     def WorkStart(self):
         if self.is_running:
             raise Exception("Machine should be stopped")
+        self.program = self.user_program
+        
+        if self.program is None:
+            self.__finished(None)
+            return
         self.work_init()
         return self.WorkContinue()
 

@@ -1,6 +1,5 @@
 from .actions import action
 
-from .actions import homing
 from .actions import linear
 from .actions import helix
 from .actions import pause
@@ -9,6 +8,8 @@ from .actions import spindle
 from .actions import program
 
 from .modals import positioning
+
+from common import config
 
 import euclid3
 
@@ -27,11 +28,101 @@ class Program(object):
     def inc_index(self):
         self.index += 1
 
-    def insert_homing(self, frame):
-        self.__add_action(homing.ToBeginMovement(sender=self.table_sender))
+    def insert_homing(self):
+        gz1 = -config.SIZE_Z
+        gz2 = 2
+        gz3 = -3
+        if config.Z_INVERT:
+            gz1 *= -1
+            gz2 *= -1
+            gz3 *= -1
+        gx1 = -config.SIZE_X
+        gx2 = 2
+        gx3 = -3
+        if config.X_INVERT:
+            gx1 *= -1
+            gx2 *= -1
+            gx3 *= -1
+        gy1 = -config.SIZE_Y
+        gy2 = 2
+        gy3 = -3
+        if config.Y_INVERT:
+            gy1 *= -1
+            gy2 *= -1
+            gy3 *= -1
 
-    def insert_z_probe(self, frame):
-        self.__add_action(homing.ProbeMovement(sender=self.table_sender))
+        self.__add_action(linear.LinearMovement(euclid3.Vector3(0,0,gz1),
+                                                feed=config.MAXFEED,
+                                                acc=config.ACCELERATION,
+                                                sender=self.table_sender))
+        self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
+        self.__add_action(linear.LinearMovement(euclid3.Vector3(0,0,gz2),
+                                                feed=config.MAXFEED,
+                                                acc=config.ACCELERATION,
+                                                sender=self.table_sender))
+        self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
+        self.__add_action(linear.LinearMovement(euclid3.Vector3(0,0,gz3),
+                                                feed=config.PRECISE_FEED,
+                                                acc=config.ACCELERATION,
+                                                sender=self.table_sender))
+        self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
+        self.__add_action(linear.LinearMovement(euclid3.Vector3(gx1, 0, 0),
+                                                feed=config.MAXFEED,
+                                                acc=config.ACCELERATION,
+                                                sender=self.table_sender))
+        self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
+        self.__add_action(linear.LinearMovement(euclid3.Vector3(gx2,0,0),
+                                                feed=config.MAXFEED,
+                                                acc=config.ACCELERATION,
+                                                sender=self.table_sender))
+        self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
+        self.__add_action(linear.LinearMovement(euclid3.Vector3(gx3,0,0),
+                                                feed=config.PRECISE_FEED,
+                                                acc=config.ACCELERATION,
+                                                sender=self.table_sender))
+        self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
+        self.__add_action(linear.LinearMovement(euclid3.Vector3(0,gy1,0),
+                                                feed=config.MAXFEED,
+                                                acc=config.ACCELERATION,
+                                                sender=self.table_sender))
+        self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
+        self.__add_action(linear.LinearMovement(euclid3.Vector3(0,gy2,0),
+                                                feed=config.MAXFEED,
+                                                acc=config.ACCELERATION,
+                                                sender=self.table_sender))
+        self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
+        self.__add_action(linear.LinearMovement(euclid3.Vector3(0,gy3,0),
+                                                feed=config.PRECISE_FEED,
+                                                acc=config.ACCELERATION,
+                                                sender=self.table_sender))
+        self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
+        self.__add_action(action.MCUCmd("M997", sender=self.table_sender))
+
+    def insert_z_probe(self):
+        gz1 = config.SIZE_Z
+        gz2 = -2
+        gz3 = 3
+        if config.Z_INVERT:
+            gz1 *= -1
+            gz2 *= -1
+            gz3 *= -1
+        self.__add_action(action.MCUCmd("M996", sender=self.table_sender))
+        self.__add_action(linear.LinearMovement(euclid3.Vector3(0,0,gz1),
+                                                feed=config.MAXFEED,
+                                                acc=config.ACCELERATION,
+                                                sender=self.table_sender))
+        self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
+        self.__add_action(linear.LinearMovement(euclid3.Vector3(0,0,gz2),
+                                                feed=config.MAXFEED,
+                                                acc=config.ACCELERATION,
+                                                sender=self.table_sender))
+        self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
+        self.__add_action(linear.LinearMovement(euclid3.Vector3(0,0,gz3),
+                                                feed=config.PRECISE_FEED,
+                                                acc=config.ACCELERATION,
+                                                sender=self.table_sender))
+        self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
+        self.__add_action(action.MCUCmd("M995", sender=self.table_sender))
 
     #region movements
     def __insert_fast_movement(self, delta, exact_stop, table_state):

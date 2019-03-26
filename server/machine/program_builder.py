@@ -124,7 +124,7 @@ class ProgramBuilder(object):
         for cmd in frame.commands:
             if cmd.type == "G":
                 if cmd.value == 74:
-                    self.program.insert_homing(frame)
+                    self.program.insert_homing()
                 elif cmd.value == 30:
                     self.program.insert_z_probe(frame)
                 elif cmd.value == 92:
