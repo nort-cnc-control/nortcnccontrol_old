@@ -134,9 +134,12 @@ class ProgramBuilder(object):
             if cmd.type == "G":
                 if cmd.value == 74:
                     self.program.insert_homing()
-                    self.table_state.pos = euclid3.Vector3(0, 0, 0)
+                    self.table_state.pos.x = 0
+                    self.table_state.pos.y = 0
+                    self.table_state.pos.z = 0
                 elif cmd.value == 30:
                     self.program.insert_z_probe()
+                    self.table_state.pos.z = 0
                 elif cmd.value == 92:
                     # set offset registers
                     self.__set_coordinates(x=pos.X, y=pos.Y, z=pos.Z)
