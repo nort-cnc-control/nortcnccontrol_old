@@ -1,3 +1,5 @@
+import euclid3
+
 from . import program
 from . import arguments
 
@@ -118,7 +120,7 @@ class ProgramBuilder(object):
             old_state != self.tool_state.SpindleGroup.spindle_stop:
             self.program.insert_set_speed(speed.speed)
         self.__start_stop_spindle(old_state, new_state)
-        
+
     def __process_move(self, frame):
         self.table_state.process_frame(frame)
         pos = arguments.Positioning(frame)
@@ -132,6 +134,7 @@ class ProgramBuilder(object):
             if cmd.type == "G":
                 if cmd.value == 74:
                     self.program.insert_homing()
+                    self.table_state.pos = euclid3.Vector3(0, 0, 0)
                 elif cmd.value == 30:
                     self.program.insert_z_probe()
                 elif cmd.value == 92:
