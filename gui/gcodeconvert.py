@@ -36,6 +36,7 @@ class Controller(object):
         self.control.stop_clicked += self.__stop
         self.control.home_clicked += self.__home
         self.control.probe_clicked += self.__probe
+        self.control.command_entered += self.__command
         self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.sock.settimeout(0)
         self.control.switch_to_initial_mode()
@@ -64,6 +65,14 @@ class Controller(object):
 
     def __stop(self):
         self.__send_command("stop")
+
+    def __command(self, cmd):
+        r = {
+            "type" : "command",
+            "command" : "execute",
+            "line" : cmd,
+        }
+        self.msg_sender.send_message(r)
 
     def __load_file(self, filename):
         file = open(filename, encoding="utf-8")
@@ -103,7 +112,11 @@ class Controller(object):
                     self.control.show_ok(message)
             elif state == "completed":
                 self.control.switch_to_initial_mode()
-                self.control.show_ok("Finished")
+                if msg["display"]:
+                    if msg["message"] == "":
+                        self.control.show_ok("Finished")
+                    else:
+                        self.control.show_ok(msg["message"])
 
     def __on_receive_event(self, sock, cond):
         

@@ -38,6 +38,17 @@ class Interface(object):
         def __probe(self, arg):
             self.probe_clicked()
 
+        def __execute(self, arg):
+            cmd = self.command.GetValue()
+            self.command_entered(cmd)
+            self.command.SetValue("")
+
+        def __kd(self, arg):
+            keycode = arg.GetKeyCode()
+            if keycode == wx.WXK_RETURN or keycode == wx.WXK_NUMPAD_ENTER:
+                self.__execute(None)
+            arg.Skip()
+
         def __init__(self, parent):
             self.loaded = event.EventEmitter()
             self.reset_clicked = event.EventEmitter()
@@ -47,6 +58,7 @@ class Interface(object):
             self.stop_clicked = event.EventEmitter()
             self.home_clicked = event.EventEmitter()
             self.probe_clicked = event.EventEmitter()
+            self.command_entered = event.EventEmitter()
 
             wx.Frame.__init__(self, parent, title="CNC Control", size=(800,600))
             menubar = wx.MenuBar()
@@ -87,9 +99,11 @@ class Interface(object):
             code_sizer.Add(cmdpanel, flag=wx.EXPAND)
 
             self.command = wx.TextCtrl(cmdpanel)
+            self.command.Bind(wx.EVT_KEY_DOWN, self.__kd)
             cmdpanel_sizer.Add(self.command, wx.ID_ANY, flag=wx.EXPAND)
 
             self.send_command = wx.Button(cmdpanel, label='>', size=(32, -1))
+            self.send_command.Bind(wx.EVT_BUTTON, self.__execute)
             cmdpanel_sizer.Add(self.send_command)
             #endregion
 
@@ -205,6 +219,7 @@ class Interface(object):
         self.stop_clicked = self.window.stop_clicked
         self.home_clicked = self.window.home_clicked
         self.probe_clicked = self.window.probe_clicked
+        self.command_entered = self.window.command_entered
 
         self.window.Show(True)
         self.clear_commands()
@@ -229,6 +244,8 @@ class Interface(object):
         self.window.pause_btn.Disable()
         self.window.home_btn.Enable()
         self.window.probe_btn.Enable()
+        self.window.command.Enable()
+        self.window.send_command.Enable()
 
     def switch_to_paused_mode(self):
         self.window.start_btn.Disable()
@@ -237,6 +254,8 @@ class Interface(object):
         self.window.pause_btn.Disable()
         self.window.home_btn.Disable()
         self.window.probe_btn.Disable()
+        self.window.command.Disable()
+        self.window.send_command.Disable()
 
     def switch_to_running_mode(self):
         self.window.start_btn.Disable()
@@ -245,6 +264,8 @@ class Interface(object):
         self.window.pause_btn.Enable()
         self.window.home_btn.Disable()
         self.window.probe_btn.Disable()
+        self.window.command.Disable()
+        self.window.send_command.Disable()
 
     def run(self):
         self.app.MainLoop()

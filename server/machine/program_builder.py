@@ -6,15 +6,22 @@ from .modals import tool
 
 class ProgramBuilder(object):
     
-    def __init__(self, table_sender, spindel_sender):
+    def __init__(self, table_sender, spindel_sender, previous_state=None):
         self.program = program.Program(table_sender, spindel_sender)
-        self.table_state = positioning.PositioningState()
-        self.tool_state = tool.ToolState()
+        if previous_state is None:
+            self.table_state = positioning.PositioningState()
+            self.tool_state = tool.ToolState()
+        else:
+            self.table_state = previous_state[0]
+            self.tool_state = previous_state[1]
         self.__subprograms = {}
         self.program_stack = []
         self.finish_cb = None
         self.tool_select_cb = None
         self.pause_cb = None
+
+    def get_state(self):
+        return (self.table_state, self.tool_state)
 
     #region movement options
     def __set_feed(self, feed):
@@ -126,7 +133,7 @@ class ProgramBuilder(object):
                 if cmd.value == 74:
                     self.program.insert_homing()
                 elif cmd.value == 30:
-                    self.program.insert_z_probe(frame)
+                    self.program.insert_z_probe()
                 elif cmd.value == 92:
                     # set offset registers
                     self.__set_coordinates(x=pos.X, y=pos.Y, z=pos.Z)

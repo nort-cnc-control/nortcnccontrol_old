@@ -70,10 +70,15 @@ class Controller(object):
         self.state = "paused"
         self.__print_state("Please insert tool #%i" % tool)
 
-    def __done(self):
+    def __done(self, display, message=""):
         # send RPC message about event
         self.state = "completed"
-        self.__print_state()
+        self.__emit_message({
+            "type" : "state",
+            "state" : self.state,
+            "message" : message,
+            "display" : display,
+        })
         self.state = "init"
         self.__print_state()
 
@@ -85,6 +90,13 @@ class Controller(object):
         self.__emit_message({"type":"loadlines", "lines":lines})
         self.machine.Load(frames)
         
+    def __execute_line(self, line):
+        try:
+            frame = self.parser.parse(line)
+            self.machine.Execute(frame)
+        except:
+            self.__done(True, "Parse error")
+
     def __print_state(self, message = ""):
         self.__emit_message({
             "type" : "state",
@@ -138,6 +150,10 @@ class Controller(object):
                         self.state = "running"
                         self.__print_state()
                         self.__run_cmd(self.machine.WorkContinue, wait=False)
+                    elif msg["command"] == "execute":
+                        self.state = "running"
+                        self.__print_state()
+                        self.__run_cmd(self.__execute_line, msg["line"], wait=False)
                     elif msg["command"] == "exit":
                         self.state = "exit"
                         self.__print_state()

@@ -51,7 +51,7 @@ class Machine(object):
 
     def __init__(self, table_sender, spindle_sender):
         print("Creating machine...")
-        self.is_running        = False
+        self.is_running     = False
         self.is_finished    = False
         self.table_sender   = table_sender
         self.spindle_sender = spindle_sender
@@ -67,25 +67,31 @@ class Machine(object):
         self.user_program = None
         # actual program
         self.program = None
+        self.state = None
+        self.builder = None
         # special programs
+        self.empty_program = pr.Program(self.table_sender, self.spindle_sender)
         self.z_probe_program = pr.Program(self.table_sender, self.spindle_sender)
         self.z_probe_program.insert_z_probe()
         self.homing_program = pr.Program(self.table_sender, self.spindle_sender)
         self.homing_program.insert_homing()
-        self.work_init()
+        # states
+        self.previous_state = None
+        self.work_init(self.empty_program)
         print("done")
 
-    def work_init(self):
+    def work_init(self, program):
         print("INIT")
+        self.program = program
         self.is_running = False
         self.iter = 0
         self.reset = False
         self.display_paused = False
+        self.display_finished = True
         self.lastaction = None
-        if self.program:
-            for (_, action, _) in self.program.actions:
-                action.completed.clear()
-                action.finished.clear()
+        for (_, action, _) in self.program.actions:
+            action.completed.clear()
+            action.finished.clear()
 
     #region Add UI action 
 
@@ -99,7 +105,11 @@ class Machine(object):
     def __finished(self, action):
         self.is_running = False
         self.is_finished = True
-        self.finished()
+        self.finished(self.display_finished)
+        if self.builder is not None:
+            self.state = self.builder.get_state()
+        else:
+            self.state = None
 
     def __action_started(self, action):
         for i in range(len(self.program.actions)):
@@ -110,29 +120,41 @@ class Machine(object):
         self.line_selected(self.program.actions[i][2])
 
     def Load(self, frames):
-        builder = ProgramBuilder(self.table_sender, self.spindle_sender)
-        builder.finish_cb = self.__finished
-        builder.pause_cb = self.__paused
-        builder.tool_select_cb = self.__tool_selected
-        self.user_program = builder.build_program(frames)
+        self.builder = ProgramBuilder(self.table_sender, self.spindle_sender, self.state)
+        self.builder.finish_cb = self.__finished
+        self.builder.pause_cb = self.__paused
+        self.builder.tool_select_cb = self.__tool_selected
+        self.user_program = self.builder.build_program(frames)
         Optimizer.optimize(self.user_program, config.JERKING)
         for action in self.user_program.actions:
             action[1].action_started += self.__action_started
         if len(self.user_program.actions) > 0:
             self.line_selected(self.user_program.actions[0][2])
 
+    def Execute(self, frame):
+        self.builder = ProgramBuilder(self.table_sender, self.spindle_sender, self.state)
+        self.builder.finish_cb = self.__finished
+        self.builder.pause_cb = self.__paused
+        self.builder.tool_select_cb = self.__tool_selected
+        try:
+            self.work_init(self.builder.build_program([frame]))
+            self.display_finished = False
+            self.WorkContinue()
+        except:
+            pass
+
     def MakeHoming(self, x, y, z):
+        self.builder = None
         if self.is_running:
             raise Exception("Machine should be stopped")
-        self.program = self.homing_program
-        self.work_init()
+        self.work_init(self.homing_program)
         self.WorkContinue()
 
     def MakeProbeZ(self):
+        self.builder = None
         if self.is_running:
             raise Exception("Machine should be stopped")
-        self.program = self.z_probe_program
-        self.work_init()
+        self.work_init(self.z_probe_program)
         self.WorkContinue()
 
     def __has_cmds(self):
@@ -147,7 +169,7 @@ class Machine(object):
             actions.append(action)
             self.iter += 1
         return actions
-        
+
     def __get_action(self):
         if not self.__has_cmds():
             return None
@@ -189,7 +211,7 @@ class Machine(object):
                     continue
             elif state is self.StateMachine.End:
                 if not self.is_finished:
-                    self.finished()
+                    self.__finished(None)
                 break
             elif state is self.StateMachine.Reseted:
                 self.reset = True
@@ -267,12 +289,10 @@ class Machine(object):
     def WorkStart(self):
         if self.is_running:
             raise Exception("Machine should be stopped")
-        self.program = self.user_program
-        
-        if self.program is None:
-            self.__finished(None)
-            return
-        self.work_init()
+        if self.user_program is None:
+            self.work_init(self.empty_program)  
+        else:
+            self.work_init(self.user_program)
         return self.WorkContinue()
 
     def Reset(self):
@@ -284,9 +304,11 @@ class Machine(object):
             self.lastaction.abort()
         self.table_sender.reset()
         self.spindle_sender.stop()
-        self.work_init()
+        self.state = None
+        self.builder = None
+        self.work_init(self.empty_program)
 
     def WorkStop(self):
-        self.work_init()
+        self.work_init(self.empty_program)
         self.is_running = False
         self.finished()
