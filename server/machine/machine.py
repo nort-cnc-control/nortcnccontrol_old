@@ -71,10 +71,6 @@ class Machine(object):
         self.builder = None
         # special programs
         self.empty_program = pr.Program(self.table_sender, self.spindle_sender)
-        self.z_probe_program = pr.Program(self.table_sender, self.spindle_sender)
-        self.z_probe_program.insert_z_probe()
-        self.homing_program = pr.Program(self.table_sender, self.spindle_sender)
-        self.homing_program.insert_homing()
         # states
         self.previous_state = None
         self.work_init(self.empty_program)
@@ -132,6 +128,9 @@ class Machine(object):
             self.line_selected(self.user_program.actions[0][2])
 
     def Execute(self, frame):
+        if self.is_running:
+            raise Exception("Machine should be stopped")
+        
         self.builder = ProgramBuilder(self.table_sender, self.spindle_sender, self.state)
         self.builder.finish_cb = self.__finished
         self.builder.pause_cb = self.__paused
@@ -142,20 +141,6 @@ class Machine(object):
             self.WorkContinue()
         except:
             pass
-
-    def MakeHoming(self, x, y, z):
-        self.builder = None
-        if self.is_running:
-            raise Exception("Machine should be stopped")
-        self.work_init(self.homing_program)
-        self.WorkContinue()
-
-    def MakeProbeZ(self):
-        self.builder = None
-        if self.is_running:
-            raise Exception("Machine should be stopped")
-        self.work_init(self.z_probe_program)
-        self.WorkContinue()
 
     def __has_cmds(self):
         return self.iter < len(self.program.actions)

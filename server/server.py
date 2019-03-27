@@ -170,15 +170,11 @@ class Controller(object):
                     elif msg["command"] == "home":
                         self.state = "running"
                         self.__print_state()
-                        self.__run_cmd(self.machine.MakeHoming, True, True, True, wait=False)
-                        self.state = "init"
-                        self.__print_state()
+                        self.__run_cmd(self.__execute_line, "G74", wait=False)
                     elif msg["command"] == "probe":
                         self.state = "running"
                         self.__print_state()
-                        self.__run_cmd(self.machine.MakeProbeZ, wait=False)
-                        self.state = "init"
-                        self.__print_state()
+                        self.__run_cmd(self.__execute_line, "G30", wait=False)
                     else:
                         pass
 
