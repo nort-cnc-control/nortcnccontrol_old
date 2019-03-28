@@ -152,5 +152,4 @@ class SerialSender(object):
 
     def reset(self):
         self.__reseted = True
-        self.__id = 0
         self.__qans.set()

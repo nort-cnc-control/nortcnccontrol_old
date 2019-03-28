@@ -51,6 +51,7 @@ class Program(object):
             gy2 *= -1
             gy3 *= -1
 
+        self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
         self.__add_action(linear.LinearMovement(euclid3.Vector3(0,0,gz1),
                                                 feed=config.MAXFEED,
                                                 acc=config.ACCELERATION,
@@ -107,6 +108,7 @@ class Program(object):
             gz2 *= -1
             gz3 *= -1
         self.__add_action(action.MCUCmd("M996", sender=self.table_sender))
+        self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
         self.__add_action(linear.LinearMovement(euclid3.Vector3(0,0,gz1),
                                                 feed=config.MAXFEED,
                                                 acc=config.ACCELERATION,
