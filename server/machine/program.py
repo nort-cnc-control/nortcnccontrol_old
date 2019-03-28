@@ -260,3 +260,8 @@ class Program(object):
         act.performed += cb
         self.__add_action(act)
     #endregion control
+
+    def dispose(self):
+        for act in self.actions:
+            act.dispose()
+        self.actions = None

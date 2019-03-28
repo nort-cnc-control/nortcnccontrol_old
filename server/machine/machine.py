@@ -106,6 +106,9 @@ class Machine(object):
             self.state = self.builder.get_state()
         else:
             self.state = None
+        if self.program is not self.user_program and self.program is not self.empty_program:
+            self.program.dispose()
+            self.program = self.empty_program
 
     def __action_started(self, action):
         for i in range(len(self.program.actions)):
@@ -116,6 +119,8 @@ class Machine(object):
         self.line_selected(self.program.actions[i][2])
 
     def Load(self, frames):
+        if self.user_program is not None:
+            self.user_program.dispose()
         self.builder = ProgramBuilder(self.table_sender, self.spindle_sender, self.state)
         self.builder.finish_cb = self.__finished
         self.builder.pause_cb = self.__paused
@@ -291,9 +296,12 @@ class Machine(object):
         self.spindle_sender.stop()
         self.state = None
         self.builder = None
+        if self.program is not self.user_program and self.program is not self.empty_program:
+            self.program.dispose()
+            self.program = self.empty_program
         self.work_init(self.empty_program)
 
     def WorkStop(self):
         self.work_init(self.empty_program)
         self.is_running = False
-        self.finished()
+        self.__finished(None)

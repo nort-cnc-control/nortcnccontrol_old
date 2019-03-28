@@ -88,6 +88,7 @@ class MCUAction(Action):
         return ""
 
     def dispose(self):
+        Action.dispose(self)
         self.table_sender.dropped -= self.__received_dropped
         self.table_sender.completed -= self.__received_completed
         self.table_sender.started -= self.__received_started
