@@ -110,16 +110,16 @@ class PositioningState(object):
                 self.motion = self.MotionGroup.fast_move
             elif cmd.value == 1:
                 self.motion = self.MotionGroup.line
-            if cmd.value == 2:
+            elif cmd.value == 2:
                 self.motion = self.MotionGroup.round_cw
             elif cmd.value == 3:
                 self.motion = self.MotionGroup.round_ccw
             elif cmd.value == 17:
                 self.plane = self.PlaneGroup.xy
-            elif cmd.value == 19:
-                self.plane = self.PlaneGroup.yz
             elif cmd.value == 18:
                 self.plane = self.PlaneGroup.zx
+            elif cmd.value == 19:
+                self.plane = self.PlaneGroup.yz
             elif cmd.value == 53:
                 self.coord_system = self.CoordinateSystemGroup.no_offset
             elif cmd.value == 54:
