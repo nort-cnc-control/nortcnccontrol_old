@@ -260,8 +260,8 @@ class Interface(object):
     def switch_to_running_mode(self):
         self.window.start_btn.Disable()
         self.window.continue_btn.Disable()
-        self.window.stop_btn.Enable()
-        self.window.pause_btn.Enable()
+        self.window.stop_btn.Disable()
+        self.window.pause_btn.Disable()
         self.window.home_btn.Disable()
         self.window.probe_btn.Disable()
         self.window.command.Disable()
