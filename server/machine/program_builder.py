@@ -112,13 +112,12 @@ class ProgramBuilder(object):
         new_state = self.tool_state.spindle
 
         speed = arguments.SpindleSpeed(frame)
-        if speed.speed != None:
+
+        if speed.speed is not None:            
+            if speed.speed != self.tool_state.speed:
+                self.program.insert_set_speed(speed.speed)
             self.tool_state.speed = speed.speed
-        
-        if speed.speed != None and \
-            speed.speed != self.tool_state.speed and \
-            old_state != self.tool_state.SpindleGroup.spindle_stop:
-            self.program.insert_set_speed(speed.speed)
+
         self.__start_stop_spindle(old_state, new_state)
 
     def __process_move(self, frame):
