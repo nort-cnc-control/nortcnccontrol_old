@@ -23,7 +23,7 @@ Server creates `/tmp/cnccontrol` unix socket, so user should have enougth permis
 - -p, --port - port, where board with https://github.com/vladtcvs/cnccontrol_rt connected. default=/dev/ttyUSB0
 - -b, --baud - baudrate for board communication. default=9600
 
-### Emultion mode
+### Emulation mode
 
 In this mode no hardware is required, commands to hardware just printed in terminal
 
