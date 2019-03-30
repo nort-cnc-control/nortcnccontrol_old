@@ -263,5 +263,5 @@ class Program(object):
 
     def dispose(self):
         for act in self.actions:
-            act.dispose()
+            act[1].dispose()
         self.actions = None
