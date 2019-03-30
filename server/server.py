@@ -182,10 +182,12 @@ port = common.config.TABLE_PORT
 brate = common.config.BAUDRATE
 port_485 = common.config.RS485_PORT
 n700e_id = common.config.N700E_ID
-emulate = False
+
+emulate_t = common.config.EMULATE_TABLE
+emulate_s = common.config.EMULATE_SPINDEL
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], "ep:b:", ["emulate", "port=", "baudrate="])
+    opts, args = getopt.getopt(sys.argv[1:], "eEp:b:", ["port=", "baudrate="])
 except getopt.GetoptError as err:
     # print help information and exit:
     print(err) # will print something like "option -a not recognized"
@@ -193,7 +195,9 @@ except getopt.GetoptError as err:
 
 for o, a in opts:
     if o == "-e":
-        emulate = True
+        emulate_t = True
+    elif o == "-E":
+        emulate_s = True
     elif o in ("-p", "--port"):
         port = a
     elif o in ("-r", "--rs485"):
@@ -204,13 +208,16 @@ for o, a in opts:
         assert False, "unhandled option"
 
 
-if emulate:
-    print("Emulate")
+if emulate_t:
     table_sender = sender.emulatorsender.EmulatorSender()
-    spindel_sender = sender.spindelemulator.Spindel_EMU()
 else:
     table_sender = sender.serialsender.SerialSender(port, brate)
+
+if emulate_s:
+    spindel_sender = sender.spindelemulator.Spindel_EMU()
+else:
     spindel_sender = sender.n700e.Spindel_N700E(port_485, n700e_id)
 
 controller = Controller(table_sender, spindel_sender, "/tmp/cnccontrol")
 controller.run()
+
