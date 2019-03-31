@@ -1,7 +1,9 @@
-XY_RIGHT = False
+# Left/Right orientation for hardware axes
+XY_RIGHT = True
 YZ_RIGHT = True
-ZX_RIGHT = False
+ZX_RIGHT = True
 
+# If hardware axes is inverted
 X_INVERT = False
 Y_INVERT = False
 Z_INVERT = True

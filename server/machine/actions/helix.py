@@ -140,16 +140,34 @@ class HelixMovement(action.Movement):
 
         if axis == self.Axis.xy:
             self.plane_is_left = not common.config.XY_RIGHT
+            if common.config.X_INVERT:
+                self.plane_is_left = not self.plane_is_left
+            if common.config.Y_INVERT:
+                self.plane_is_left = not self.plane_is_left
+            if common.config.Z_INVERT:
+                self.plane_is_left = not self.plane_is_left
         elif axis == self.Axis.yz:
             self.plane_is_left = not common.config.YZ_RIGHT
+            if common.config.X_INVERT:
+                self.plane_is_left = not self.plane_is_left
+            if common.config.Y_INVERT:
+                self.plane_is_left = not self.plane_is_left
+            if common.config.Z_INVERT:
+                self.plane_is_left = not self.plane_is_left
         else:
             self.plane_is_left = not common.config.ZX_RIGHT
+            if common.config.X_INVERT:
+                self.plane_is_left = not self.plane_is_left
+            if common.config.Y_INVERT:
+                self.plane_is_left = not self.plane_is_left
+            if common.config.Z_INVERT:
+                self.plane_is_left = not self.plane_is_left
         
-        #if not self.plane_is_left:
-        #    self.ccw = ccw
-        #else:
-        #    self.ccw = not ccw
-        self.ccw = ccw
+        if not self.plane_is_left:
+            self.ccw = ccw
+        else:
+            self.ccw = not ccw
+        
         if "r" in kwargs.keys():
             self.r = kwargs["r"]
             # center - center of circle
