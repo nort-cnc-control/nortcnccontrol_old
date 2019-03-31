@@ -15,6 +15,7 @@ class Action(object):
         self.action_started = event.EventEmitter()
         self.caching = False
         self.is_pause = False
+        self.is_moving = False
 
     def run(self):
         return self.act()
@@ -28,9 +29,6 @@ class Action(object):
 
     @abc.abstractmethod
     def act(self):
-        return False
-
-    def is_moving(self):
         return False
 
 # Local actions
@@ -128,15 +126,16 @@ class MCUAction(Action):
 
 # Movement actions
 class Movement(MCUAction):
-    def is_moving(self):
-        return True
-
     @abc.abstractmethod
     def dir0(self):
         return None
 
     @abc.abstractmethod
     def dir1(self):
+        return None
+
+    @abc.abstractmethod
+    def length(self):
         return None
 
     def __init__(self, feed, acc, exact_stop=True, **kwargs):
@@ -146,6 +145,7 @@ class Movement(MCUAction):
         self.feed0 = 0
         self.feed1 = 0
         self.acceleration = acc
+        self.is_moving = True
 
     def _convert_axes(self, delta):
         # inverting axes

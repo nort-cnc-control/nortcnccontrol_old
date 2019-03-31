@@ -63,6 +63,7 @@ class Machine(object):
         self.lastaction = None
         self.reset = False
         self.action_rdy = threading.Event()
+        self.opt = Optimizer(common.config.JERKING, common.config.ACCELERATION, common.config.MAXFEED)
         # loaded program
         self.user_program = None
         # actual program
@@ -126,7 +127,7 @@ class Machine(object):
         self.builder.pause_cb = self.__paused
         self.builder.tool_select_cb = self.__tool_selected
         self.user_program = self.builder.build_program(frames)
-        Optimizer.optimize(self.user_program, config.JERKING)
+        self.opt.optimize(self.user_program)
         for action in self.user_program.actions:
             action[1].action_started += self.__action_started
         if len(self.user_program.actions) > 0:

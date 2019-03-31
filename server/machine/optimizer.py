@@ -3,64 +3,154 @@ import math
 
 class Optimizer(object):
 
+    def __init__(self, max_jerk, max_acc, max_feed):
+        self.max_acc = max_acc
+        self.max_jerk = max_jerk / 60.0
+        self.max_feed = max_feed / 60.0
+
     @staticmethod
-    def optimize(program, max_jerk):
-        prevmove = None
-        prevfeed = 0
-        prevdir = euclid3.Vector3(0, 0, 0)
+    def __sc(a, b):
+        return a.x * b.x + a.y * b.y + a.z * b.z
 
-        for (_, move, _) in program.actions:
+    def __fill_max_feed(self, actions):
+        # set maximal feed for each action
+        for action in actions:
+            action.max_feed = min(self.max_feed, action.feed / 60.0)
+            # set maximal feed for arcs
+            try:
+                r = action.r
+                maxf = (r * self.max_acc)**0.5
+                action.max_feed = min(maxf, action.max_feed)
+            except:
+                pass
 
-            if move.is_moving() == False:
-                prevmove = None
-                continue
+    def __fill_max_feed_01(self, actions):
+        # set maximal feed0 and feed1
+        for i in range(len(actions)):
+            action = actions[i]
 
-            curfeed = move.feed
-            curdir = move.dir0()
-
-            if prevmove != None and prevmove.exact_stop != True:
-                cosa = curdir.x * prevdir.x + curdir.y * prevdir.y + curdir.z * prevdir.z
-                if cosa > 0:
-                    if cosa < 1 + 1e-4 and cosa >= 1:
-                        cosa = 1
-                    sina = math.sqrt(1-cosa**2)
-                    if sina < 1e-3:
-                        # The same direction
-                        #
-                        # startfeed = prevfeed
-                        # endfeed <= prevfeed
-                        # startfeed <= curfeed
-
-                        startfeed = min(curfeed, prevfeed)
-                        endfeed = startfeed
-                        move.feed0 = startfeed
-                        prevmove.feed1 = endfeed
-                    else:
-                        # Have direction change
-                        #
-                        # endfeed = startfeed * cosa
-                        # startfeed * sina <= jump
-                        # endfeed <= prevfeed
-                        # startfeed <= curfeed
-
-                        startfeed = curfeed
-                        startfeed = min(startfeed, prevfeed / cosa)
-                        startfeed = min(startfeed, max_jerk / sina)
-                        endfeed = startfeed * cosa
-
-                        move.feed0 = startfeed
-                        prevmove.feed1 = endfeed
-                else:
-                    # Change direction more than 90
-                    #
-                    # endfeed = 0
-                    # startfeed = 0
-                    prevmove.feed1 = 0
-                    move.feed0 = 0
+            dir0 = action.dir0()
+            if i > 0:
+                prevdir = actions[i-1].dir1()
+                prevmf = actions[i-1].max_feed
             else:
-                # first move
-                move.feed0 = 0
+                prevdir = euclid3.Vector3(0,0,0)
+                prevmf = 0
+            cos1 = self.__sc(prevdir, dir0)
+            if cos1 > 1:
+                cos1 = 1
+            if cos1 <= 1e-4:
+                action.max_feed0 = 0
+            else:
+                sin1 = (1-cos1**2)**0.5
+                if sin1 > 1e-4:
+                    maxf2 = self.max_jerk / sin1
+                else:
+                    maxf2 = self.max_feed
+                action.max_feed0 = min([maxf2, action.max_feed, prevmf])
 
-            prevfeed = curfeed
-            prevmove = move           
-            prevdir = move.dir1()
+            dir1 = action.dir1()
+            if i < len(actions)-1:
+                nextdir = actions[i+1].dir0()
+                nextmf = actions[i+1].max_feed
+            else:
+                nextdir = euclid3.Vector3(0,0,0)
+                nextmf = 0
+            cos2 = self.__sc(nextdir, dir1)
+            if cos2 > 1:
+                cos2 = 1
+            if cos2 <= 1e-4:
+                action.max_feed1 = 0
+            else:
+                sin2 = (1-cos2**2)**0.5
+                if sin2 > 1e-4:
+                    maxf2 = self.max_jerk / sin2
+                else:
+                    maxf2 = self.max_feed
+                action.max_feed1 = min([maxf2, action.max_feed, nextmf])
+
+    def __pos_feed(self, x0, f0, x1, f1):
+        x = (x0 + x1) / 2 + (f1**2 - f0**2) / (4*self.max_acc)
+        f = ((f0**2 + f1**2)/2 + self.max_acc * (x1 - x0))**0.5
+        return x, f
+
+    def __feed0(self, f, x, x0):
+        f02 = max(f**2 - 2*self.max_acc * (x - x0), 0)
+        return f02**0.5
+
+    def __feed1(self, f, x, x1):
+        f12 = max(f**2 - 2*self.max_acc * (x1 - x), 0)
+        return f12**0.5
+
+    def __feeds(self, limits, index):
+        xm = None
+        fm = None
+        f0m = limits[index][1]
+        f1m = limits[index+1][1]
+        assert(index < len(limits) - 1)
+        xbegin = limits[index][0]
+        xend = limits[index+1][0]
+        for i in range(index+1):
+            x0 = limits[i][0]
+            f0 = limits[i][1]
+            for j in range(index+1, len(limits)):
+                x1 = limits[j][0]
+                f1 = limits[j][1]
+                x,f = self.__pos_feed(x0, f0, x1, f1)
+                if fm is None or fm > f:
+                    xm = x
+                    fm = f
+        if xm >= xbegin and xm <= xend:
+            f0 = min(self.__feed0(fm, xm, xbegin), f0m)
+            f1 = min(self.__feed1(fm, xm, xend), f1m)
+            return f0, fm, f1
+        elif xm > xend:
+            f0 = min(self.__feed0(fm, xm, xbegin), f0m)
+            f1 = min(self.__feed0(fm, xm, xend), f1m)
+            return f0, f1, f1
+        elif xm < xbegin:
+            f0 = min(self.__feed1(fm, xm, xbegin), f0m)
+            f1 = min(self.__feed1(fm, xm, xend), f1m)
+            return f0, f0, f1    
+    
+    def __process_chain(self, actions):
+        if len(actions) == 0:
+            return
+        limits = [(0, actions[0].max_feed0)]
+        x = 0
+        for action in actions:
+            x += action.length()
+            limits.append((x, action.max_feed1))
+
+        for i in range(len(limits) - 1):
+            f0, f, f1 = self.__feeds(limits, i)
+            actions[i].feed0 = f0*60
+            actions[i].feed = min(f, actions[i].max_feed)*60
+            actions[i].feed1 = f1*60
+
+    # optimize chain
+    def __optimize_chain(self, actions):
+        self.__fill_max_feed(actions)
+        self.__fill_max_feed_01(actions)
+        self.__process_chain(actions)
+
+    # optimize program
+    #
+    # divide it to chains
+    # and optimize each chain
+    def optimize(self, program):
+        chain = []
+
+        for (_, action, _) in program.actions:
+            if action.is_moving == False:
+                if len(chain) > 0:
+                    self.__optimize_chain(chain)
+                    chain = []
+                continue
+            chain.append(action)
+            if action.exact_stop == True:
+                self.__optimize_chain(chain)
+                chain = []  
+
+        if len(chain) > 0:
+            self.__optimize_chain(chain)

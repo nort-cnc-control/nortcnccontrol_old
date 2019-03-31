@@ -193,6 +193,7 @@ class HelixMovement(action.Movement):
 
         l = abs(self.r) * angle
         self.__set_tan(axis, p0, p1, h, l)
+        self.__l = (l**2 + h**2) ** 0.5
 
     def __get_d_h(self, delta, axis):
         if axis == self.Axis.xy:
@@ -222,6 +223,9 @@ class HelixMovement(action.Movement):
         elif axis == self.Axis.zx:
             self.dir_0 = euclid3.Vector3(tan0.y, tan0.z, tan0.x)
             self.dir_1 = euclid3.Vector3(tan1.y, tan1.z, tan1.x)
+
+    def length(self):
+        return self.__l
 
     def dir0(self):
         return self.dir_0

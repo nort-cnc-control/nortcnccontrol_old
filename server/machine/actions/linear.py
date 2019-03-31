@@ -22,6 +22,9 @@ class LinearMovement(action.Movement):
         else:
             self.dir = euclid3.Vector3()
 
+    def length(self):
+        return self.delta.magnitude()
+
     def dir0(self):
         return self.dir
 
