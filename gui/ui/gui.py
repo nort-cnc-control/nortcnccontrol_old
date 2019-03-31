@@ -42,6 +42,7 @@ class Interface(object):
             cmd = self.command.GetValue()
             self.command_entered(cmd)
             self.command.SetValue("")
+            self.command.SetFocus()
 
         def __kd(self, arg):
             keycode = arg.GetKeyCode()
@@ -246,6 +247,7 @@ class Interface(object):
         self.window.probe_btn.Enable()
         self.window.command.Enable()
         self.window.send_command.Enable()
+        self.window.command.SetFocus()
 
     def switch_to_paused_mode(self):
         self.window.start_btn.Disable()
@@ -256,6 +258,7 @@ class Interface(object):
         self.window.probe_btn.Disable()
         self.window.command.Disable()
         self.window.send_command.Disable()
+        self.window.command.SetFocus()
 
     def switch_to_running_mode(self):
         self.window.start_btn.Disable()
