@@ -24,6 +24,22 @@ class Optimizer(object):
             except:
                 pass
 
+    def __max_feed_jerk(self, dir1, dir2):
+        cosa = self.__sc(dir1, dir2)
+        if cosa > 1:
+            cosa = 1
+        if cosa <= 1e-4:
+            return 0
+        else:
+            sina = (1-cosa**2)**0.5
+            if sina > 1e-4:
+                maxf2 = self.max_jerk / sina
+                maxf1 = self.max_jerk / (1 - cosa)
+            else:
+                maxf1 = self.max_feed
+                maxf2 = self.max_feed
+            return min(maxf1, maxf2)
+
     def __fill_max_feed_01(self, actions):
         # set maximal feed0 and feed1
         for i in range(len(actions)):
@@ -36,18 +52,8 @@ class Optimizer(object):
             else:
                 prevdir = euclid3.Vector3(0,0,0)
                 prevmf = 0
-            cos1 = self.__sc(prevdir, dir0)
-            if cos1 > 1:
-                cos1 = 1
-            if cos1 <= 1e-4:
-                action.max_feed0 = 0
-            else:
-                sin1 = (1-cos1**2)**0.5
-                if sin1 > 1e-4:
-                    maxf2 = self.max_jerk / sin1
-                else:
-                    maxf2 = self.max_feed
-                action.max_feed0 = min([maxf2, action.max_feed, prevmf])
+
+            action.max_feed0 = min([self.__max_feed_jerk(prevdir, dir0), action.max_feed, prevmf])
 
             dir1 = action.dir1()
             if i < len(actions)-1:
@@ -56,18 +62,7 @@ class Optimizer(object):
             else:
                 nextdir = euclid3.Vector3(0,0,0)
                 nextmf = 0
-            cos2 = self.__sc(nextdir, dir1)
-            if cos2 > 1:
-                cos2 = 1
-            if cos2 <= 1e-4:
-                action.max_feed1 = 0
-            else:
-                sin2 = (1-cos2**2)**0.5
-                if sin2 > 1e-4:
-                    maxf2 = self.max_jerk / sin2
-                else:
-                    maxf2 = self.max_feed
-                action.max_feed1 = min([maxf2, action.max_feed, nextmf])
+            action.max_feed1 = min([self.__max_feed_jerk(nextdir, dir1), action.max_feed, nextmf])
 
     def __pos_feed(self, x0, f0, x1, f1):
         x = (x0 + x1) / 2 + (f1**2 - f0**2) / (4*self.max_acc)
