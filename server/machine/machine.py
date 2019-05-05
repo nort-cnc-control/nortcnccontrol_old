@@ -66,6 +66,7 @@ class Machine(object):
         self.opt = Optimizer(common.config.JERKING, common.config.ACCELERATION, common.config.MAXFEED)
         # loaded program
         self.user_program = None
+        self.user_frames = []
         # actual program
         self.program = None
         self.state = None
