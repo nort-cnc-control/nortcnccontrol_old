@@ -105,6 +105,10 @@ class Machine(object):
         self.finished(self.display_finished)
         if self.builder is not None:
             self.state = self.builder.get_state()
+            #print("Offsets: ")
+            #for off in self.state[0].offsets:
+            #    val = self.state[0].offsets[off]
+            #    print(off, "=", val.x, val.y, val.z)
         else:
             self.state = None
         if self.program is not self.user_program and self.program is not self.empty_program:
@@ -119,9 +123,7 @@ class Machine(object):
             return
         self.line_selected(self.program.actions[i][2])
 
-    def Load(self, frames):
-        if self.user_program is not None:
-            self.user_program.dispose()
+    def __build_user_program(self, frames):
         self.builder = ProgramBuilder(self.table_sender, self.spindle_sender, self.state)
         self.builder.finish_cb = self.__finished
         self.builder.pause_cb = self.__paused
@@ -133,20 +135,23 @@ class Machine(object):
         if len(self.user_program.actions) > 0:
             self.line_selected(self.user_program.actions[0][2])
 
+    def Load(self, frames):
+        if self.user_program is not None:
+            self.user_program.dispose()
+        self.user_frames = frames
+
     def Execute(self, frame):
         if self.is_running:
             raise Exception("Machine should be stopped")
-        
+
         self.builder = ProgramBuilder(self.table_sender, self.spindle_sender, self.state)
         self.builder.finish_cb = self.__finished
         self.builder.pause_cb = self.__paused
         self.builder.tool_select_cb = self.__tool_selected
-        try:
-            self.work_init(self.builder.build_program([frame]))
-            self.display_finished = False
-            self.WorkContinue()
-        except:
-            pass
+        
+        self.work_init(self.builder.build_program([frame]))
+        self.display_finished = False
+        self.WorkContinue()
 
     def __has_cmds(self):
         return self.iter < len(self.program.actions)
@@ -280,6 +285,7 @@ class Machine(object):
     def WorkStart(self):
         if self.is_running:
             raise Exception("Machine should be stopped")
+        self.__build_user_program(self.user_frames)
         if self.user_program is None:
             self.work_init(self.empty_program)  
         else:

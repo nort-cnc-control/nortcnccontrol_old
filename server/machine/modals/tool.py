@@ -1,4 +1,5 @@
 from enum import Enum
+import copy
 
 class ToolState(object):
 
@@ -50,3 +51,6 @@ class ToolState(object):
                 self.spindle = self.SpindleGroup.spindle_stop
             elif cmd.value == 9:
                 self.coolant = self.CoolantGroup.no_coolant
+
+    def copy(self):
+        return copy.copy(self)

@@ -1,6 +1,7 @@
 import euclid3
 from enum import Enum
 import common
+import copy
 
 class PositioningState(object):
 
@@ -140,3 +141,6 @@ class PositioningState(object):
                 self.positioning = self.PositioningGroup.relative
             elif cmd.value == 94:
                 self.feed_mode = self.FeedRateGroup.feed
+
+    def copy(self):
+        return copy.copy(self)

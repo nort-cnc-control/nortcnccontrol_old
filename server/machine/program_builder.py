@@ -14,8 +14,8 @@ class ProgramBuilder(object):
             self.table_state = positioning.PositioningState()
             self.tool_state = tool.ToolState()
         else:
-            self.table_state = previous_state[0]
-            self.tool_state = previous_state[1]
+            self.table_state = previous_state[0].copy()
+            self.tool_state = previous_state[1].copy()
         self.__subprograms = {}
         self.program_stack = []
         self.finish_cb = None

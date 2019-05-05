@@ -94,8 +94,8 @@ class Controller(object):
         try:
             frame = self.parser.parse(line)
             self.machine.Execute(frame)
-        except:
-            self.__done(True, "Parse error")
+        except Exception as e:
+            self.__done(True, "Process error: " + str(e))
 
     def __print_state(self, message = ""):
         self.__emit_message({
