@@ -51,6 +51,9 @@ class Machine(object):
 
     def __init__(self, table_sender, spindle_sender):
         print("Creating machine...")
+        self.registers = {
+            "tools" : {}
+        }
         self.is_running     = False
         self.is_finished    = False
         self.table_sender   = table_sender
@@ -87,7 +90,7 @@ class Machine(object):
         self.display_paused = False
         self.display_finished = True
         self.lastaction = None
-        for (_, action, _) in self.program.actions:
+        for (_, action, _, _) in self.program.actions:
             action.completed.clear()
             action.finished.clear()
 
@@ -125,7 +128,7 @@ class Machine(object):
         self.line_selected(self.program.actions[i][2])
 
     def __build_user_program(self, frames):
-        self.builder = ProgramBuilder(self.table_sender, self.spindle_sender, self.state)
+        self.builder = ProgramBuilder(self.table_sender, self.spindle_sender, self.registers, self.state)
         self.builder.finish_cb = self.__finished
         self.builder.pause_cb = self.__paused
         self.builder.tool_select_cb = self.__tool_selected
@@ -145,7 +148,7 @@ class Machine(object):
         if self.is_running:
             raise Exception("Machine should be stopped")
 
-        self.builder = ProgramBuilder(self.table_sender, self.spindle_sender, self.state)
+        self.builder = ProgramBuilder(self.table_sender, self.spindle_sender, self.registers, self.state)
         self.builder.finish_cb = self.__finished
         self.builder.pause_cb = self.__paused
         self.builder.tool_select_cb = self.__tool_selected
@@ -313,3 +316,6 @@ class Machine(object):
         self.work_init(self.empty_program)
         self.is_running = False
         self.__finished(None)
+
+    def RegisterTool(self, tool, radius):
+        self.registers["tools"][tool] = radius

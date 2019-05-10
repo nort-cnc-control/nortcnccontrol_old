@@ -17,16 +17,14 @@ class LinearMovement(action.Movement):
         action.Movement.__init__(self, feed=feed, acc=acc, **kwargs)
         self.delta = delta
         self.gcode = None
-        if self.delta.magnitude() > 0:
-            self.dir = self.delta / self.delta.magnitude()
-        else:
-            self.dir = euclid3.Vector3()
 
     def length(self):
         return self.delta.magnitude()
 
-    def dir0(self):
-        return self.dir
-
-    def dir1(self):
-        return self.dir
+    @staticmethod
+    def find_geometry(source, target):
+        delta = target - source
+        mag = delta.magnitude()
+        if mag > 0:
+            delta /= mag
+        return delta, delta

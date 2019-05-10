@@ -22,9 +22,9 @@ class HelixMovement(action.Movement):
         else:
             type_cmd = "G2 "
 
-        if self.axis == self.Axis.xy:
+        if self.axis == HelixMovement.Axis.xy:
             dir_cmd = "G17 "
-        elif self.axis == self.Axis.yz:
+        elif self.axis == HelixMovement.Axis.yz:
             dir_cmd = "G18 "
         else:
             dir_cmd = "G19 "
@@ -36,39 +36,53 @@ class HelixMovement(action.Movement):
         code = type_cmd + feed_cmd + center_cmd + dir_cmd + delta_cmd
         return code
 
-    def __ps_from_cdr(self, c, d, r, sign):
-        if r > 0:
-            p0 = euclid3.Vector2(-c.y, c.x)
-            p1 = euclid3.Vector2(-(c.y - d.y), c.x - d.x)
-        else:
-            p0 = euclid3.Vector2(c.y, -c.x)
-            p1 = euclid3.Vector2((c.y - d.y), -(c.x - d.x))
-        p0 = p0 / p0.magnitude()
-        p1 = p1 / p1.magnitude()
-        return p0 * sign, p1 * sign
+    # find tangents to arc
+    @staticmethod
+    def __find_tangents(start_to_center, end_to_center, ccw, big, plane_is_left):
+        p0 = euclid3.Vector2(-start_to_center.y, start_to_center.x)
+        p1 = euclid3.Vector2(-end_to_center.y, end_to_center.x)
+
+        sign = 1
+        if (ccw and big) or ((not ccw) and (not big)):
+            sign *= -1
+
+        p0 = p0 / p0.magnitude() * sign
+        p1 = p1 / p1.magnitude() * sign
+
+        #print("P0 = ", p0)
+        return p0, p1
 
     # length=1 vector, ortogonal to d, and looking right to d
-    def __right_ortogonal(self, d):
+    @staticmethod
+    def __right_ortogonal_vector(d):
         D = d.magnitude()
         right = euclid3.Vector2(d.y/D, -d.x/D)
-        if self.plane_is_left:
-            right = -right
         return right
 
+    @staticmethod
+    def __find_center_side(source_to_center, delta):
+        right = HelixMovement.__right_ortogonal_vector(delta)
+        if right.x * source_to_center.x + right.y * source_to_center.y > 0:
+            center_side = 1
+        else:
+            center_side = -1
+        return center_side
+        
     # Find center of arc, and tangents on begin and end
-    def __find_geometry_from_r(self, d, r, ccw):
-        D = d.magnitude()
-
+    @staticmethod
+    def __find_geometry_from_r(delta, radius, ccw, plane_is_left):
+        D = delta.magnitude()
+        big_arc = radius < 0
         if D == 0:
-            raise Exception("Line movement")
+            raise Exception("Empty movement")
 
-        if abs(r) < D / 2:
+        if abs(radius) < D / 2:
             raise Exception("Too small radius")
 
         # distance from arc center to horde
-        s = (r**2 - (D/2)**2)**0.5
+        s = (radius**2 - (D/2)**2)**0.5
 
-        if (ccw is False and r > 0) or (ccw is True and r < 0):
+        if (ccw is False and not big_arc) or (ccw is True and big_arc):
             # Clock wise or ccw with angle > 180
             # Center is right to horde
             center_side = 1
@@ -78,128 +92,50 @@ class HelixMovement(action.Movement):
             center_side = -1
 
         horde_center_distance = s * center_side
-        right = self.__right_ortogonal(d)
-        center = euclid3.Vector2(d.x/2 + right.x * horde_center_distance,
-                                 d.y/2 + right.y * horde_center_distance)
-        #print(center)
-        p0, p1 = self.__ps_from_cdr(center, d, r, center_side)
+        right = HelixMovement.__right_ortogonal_vector(delta)
+        start_to_center = euclid3.Vector2(right.x * horde_center_distance + delta.x/2,
+                                          right.y * horde_center_distance + delta.y/2)
+        end_to_center = euclid3.Vector2(right.x * horde_center_distance - delta.x/2,
+                                        right.y * horde_center_distance - delta.y/2)
 
-        cosa = 1 - d.magnitude_squared() / (2 * r**2)
-        arc_angle = math.acos(cosa)
-        if r < 0:
+        p0, p1 = HelixMovement.__find_tangents(start_to_center, end_to_center, ccw, big_arc, plane_is_left)
+
+        arc_angle = math.acos(D/(2 * radius))
+        if big_arc:
             arc_angle = 2*math.pi - arc_angle
 
-        return center, horde_center_distance, arc_angle, p0, p1
+        return start_to_center, p0, p1, arc_angle
 
     # Find radius of arc, and tangents on begin and end
-    def __find_geometry_from_ijk(self, d, center, ccw):
-        D = d.magnitude()
-
-        r1 = center.magnitude()
-        r2 = (d - center).magnitude()
+    @staticmethod
+    def __find_geometry_from_ijk(delta, start_to_center, ccw, plane_is_left):
+        D = delta.magnitude()
+        end_to_center = start_to_center - delta
+        r1 = start_to_center.magnitude()
+        r2 = end_to_center.magnitude()
         if abs(r1 - r2) > 1:
             raise Exception("Incorrect center position")
-        r = (r1 + r2)/2
-        
-        right = self.__right_ortogonal(d)
-        #print(right)
-        if right.x * center.x + right.y * center.y > 0:
-            center_side = 1
-        else:
-            center_side = -1
-        # distance from arc center to horde
-        s = (r**2 - (D/2)**2)**0.5
-        
-        horde_center_distance = s * center_side
-        
-        cosa = 1 - d.magnitude_squared() / (2 * r**2)
-        arc_angle = math.acos(cosa)
+        radius = (r1 + r2)/2
 
-        if (ccw is False and center_side == 1) or (ccw is True and center_side == -1):
-            # small arc
-            pass
+        center_side = HelixMovement.__find_center_side(start_to_center, delta)
+        if (center_side == -1 and ccw) or (center_side == 1 and not ccw):
+            big_arc = False
         else:
-            # big arc
+            big_arc = True
+
+        p0, p1 = HelixMovement.__find_tangents(start_to_center, end_to_center, ccw, big_arc, plane_is_left)
+        arc_angle = math.acos(D/(2 * radius))
+        if big_arc:
             arc_angle = 2*math.pi - arc_angle
-            r = -r
         
-        p0, p1 = self.__ps_from_cdr(center, d, r, center_side)
-        return r, horde_center_distance, arc_angle, p0, p1
+        return radius, p0, p1, arc_angle
 
-        
-    def __init__(self, delta, axis, ccw, feed, acc, **kwargs):
-        action.Movement.__init__(self, feed=feed, acc=acc, **kwargs)
-        self.axis = axis
-        self.delta = delta
-        self.gcode = None
-        d, h = self.__get_d_h(delta, axis)
-
-        # Now we don't support 'h'!
-        if h != 0:
-            raise Exception("Arc don't support 'h'!")
-
-        if axis == self.Axis.xy:
-            self.plane_is_left = not common.config.XY_RIGHT
-            if common.config.X_INVERT:
-                self.plane_is_left = not self.plane_is_left
-            if common.config.Y_INVERT:
-                self.plane_is_left = not self.plane_is_left
-            if common.config.Z_INVERT:
-                self.plane_is_left = not self.plane_is_left
-        elif axis == self.Axis.yz:
-            self.plane_is_left = not common.config.YZ_RIGHT
-            if common.config.X_INVERT:
-                self.plane_is_left = not self.plane_is_left
-            if common.config.Y_INVERT:
-                self.plane_is_left = not self.plane_is_left
-            if common.config.Z_INVERT:
-                self.plane_is_left = not self.plane_is_left
-        else:
-            self.plane_is_left = not common.config.ZX_RIGHT
-            if common.config.X_INVERT:
-                self.plane_is_left = not self.plane_is_left
-            if common.config.Y_INVERT:
-                self.plane_is_left = not self.plane_is_left
-            if common.config.Z_INVERT:
-                self.plane_is_left = not self.plane_is_left
-        
-        if not self.plane_is_left:
-            self.ccw = ccw
-        else:
-            self.ccw = not ccw
-        
-        if "r" in kwargs.keys():
-            self.r = kwargs["r"]
-            # center - center of circle
-            # angle  - angle of arc
-            # p0     - tangent at begin
-            # p1     - tangent at end
-            self.center, self.hcl, angle, p0, p1 = self.__find_geometry_from_r(d, self.r, self.ccw)
-        else:
-            ci = kwargs["i"]
-            cj = kwargs["j"]
-            ck = kwargs["k"]
-            if axis == self.Axis.xy:
-                self.center = euclid3.Vector2(ci, cj)
-            elif axis == self.Axis.yz:
-                self.center = euclid3.Vector2(cj, ck)
-            else:
-                self.center = euclid3.Vector2(ck, ci)
-            # r     - radius of circle
-            # angle - angle of arc
-            # p0    - tangent at begin
-            # p1    - tangent at end
-            self.r, self.hcl, angle, p0, p1 = self.__find_geometry_from_ijk(d, self.center, self.ccw)
-
-        l = abs(self.r) * angle
-        self.__set_tan(axis, p0, p1, h, l)
-        self.__l = (l**2 + h**2) ** 0.5
-
-    def __get_d_h(self, delta, axis):
-        if axis == self.Axis.xy:
+    @staticmethod
+    def __get_d_h(delta, axis):
+        if axis == HelixMovement.Axis.xy:
             d = euclid3.Vector2(delta.x, delta.y)
             h = delta.z
-        elif axis == self.Axis.yz:
+        elif axis == HelixMovement.Axis.yz:
             d = euclid3.Vector2(delta.y, delta.z)
             h = delta.x
         else:
@@ -207,28 +143,104 @@ class HelixMovement(action.Movement):
             h = delta.y
         return d, h
 
+    @staticmethod
+    def __plane_is_left(axis):
+        if axis == HelixMovement.Axis.xy:
+            plane_is_left = not common.config.XY_RIGHT
+        elif axis == HelixMovement.Axis.yz:
+            plane_is_left = not common.config.YZ_RIGHT
+        else:
+            plane_is_left = not common.config.ZX_RIGHT
 
-    def __set_tan(self, axis, p0, p1, h, l):
-        tan = h / l
-        tan0 = euclid3.Vector3(p0.x, p0.y, tan)
-        tan1 = euclid3.Vector3(p1.x, p1.y, tan)
+        if common.config.X_INVERT:
+            plane_is_left = not plane_is_left
+        if common.config.Y_INVERT:
+            plane_is_left = not plane_is_left
+        if common.config.Z_INVERT:
+            plane_is_left = not plane_is_left
+        return plane_is_left
+
+    @staticmethod
+    def find_geometry(source, target, ccw, axis, **kwargs):
+        d, h = HelixMovement.__get_d_h(target - source, axis)
+
+        # Now we don't support 'h'!
+        if abs(h) > 1e-4:
+            raise Exception("Arc don't support 'h'!")
+
+        plane_is_left = HelixMovement.__plane_is_left(axis)
+
+        if plane_is_left:
+            ccw = not ccw
+
+        if "r" in kwargs.keys():
+            radius = kwargs["r"]
+            start_to_center, p0, p1, arc_angle = HelixMovement.__find_geometry_from_r(d, radius, ccw, plane_is_left)
+        else:
+            if axis == HelixMovement.Axis.xy:
+                start_to_center = euclid3.Vector2(kwargs["i"], kwargs["j"])
+            elif axis == HelixMovement.Axis.yz:
+                start_to_center = euclid3.Vector2(kwargs["j"], kwargs["k"])
+            else:
+                start_to_center = euclid3.Vector2(kwargs["k"], kwargs["i"])
+            radius, p0, p1, arc_angle = HelixMovement.__find_geometry_from_ijk(d, start_to_center, ccw, plane_is_left)
+
+        tan0 = euclid3.Vector2(p0.x, p0.y)
+        tan1 = euclid3.Vector2(p1.x, p1.y)
         tan0 = tan0 / tan0.magnitude()
         tan1 = tan1 / tan1.magnitude()
-        if axis == self.Axis.xy:
-            self.dir_0 = tan0
-            self.dir_1 = tan1
-        elif axis == self.Axis.yz:
-            self.dir_0 = euclid3.Vector3(tan0.z, tan0.x, tan0.y)
-            self.dir_1 = euclid3.Vector3(tan1.z, tan1.x, tan1.y)
-        elif axis == self.Axis.zx:
-            self.dir_0 = euclid3.Vector3(tan0.y, tan0.z, tan0.x)
-            self.dir_1 = euclid3.Vector3(tan1.y, tan1.z, tan1.x)
+        if axis == HelixMovement.Axis.xy:
+            dir_0 = euclid3.Vector3(tan0.x, tan0.y, 0)
+            dir_1 = euclid3.Vector3(tan1.x, tan1.y, 0)
+            center = source + euclid3.Vector3(start_to_center[0], start_to_center[1], 0)
+        elif axis == HelixMovement.Axis.yz:
+            dir_0 = euclid3.Vector3(0, tan0.x, tan0.y)
+            dir_1 = euclid3.Vector3(0, tan1.x, tan1.y)
+            center = source + euclid3.Vector3(0, start_to_center[0], start_to_center[1])
+        elif axis == HelixMovement.Axis.zx:
+            dir_0 = euclid3.Vector3(tan0.y, 0, tan0.x)
+            dir_1 = euclid3.Vector3(tan1.y, 0, tan1.x)
+            center = source + euclid3.Vector3(start_to_center[1], 0, start_to_center[0])
+
+        return center, dir_0, dir_1, arc_angle
+
+    @staticmethod
+    def __find_horde_center_distance(radius, delta, center_side):
+        s = (radius**2 - (delta/2)**2)**0.5
+        horde_center_distance = s * center_side
+        arc_angle = math.acos(delta/2 / radius)
+        return horde_center_distance, arc_angle
+
+    def __init__(self, delta, source_to_center, axis, ccw, feed, acc, **kwargs):
+        action.Movement.__init__(self, feed=feed, acc=acc, **kwargs)
+        self.axis = axis
+        self.delta = delta
+        self.gcode = None
+        d, h = HelixMovement.__get_d_h(self.delta, axis)
+
+        # Now we don't support 'h'!
+        if abs(h) > 1e-4:
+            raise Exception("Arc doesn't support 'h'!")
+
+        self.plane_is_left = HelixMovement.__plane_is_left(axis)
+        if not self.plane_is_left:
+            self.ccw = ccw
+        else:
+            self.ccw = not ccw
+
+        radius = (source_to_center.magnitude() + (source_to_center - delta).magnitude())/2
+
+        center_side = HelixMovement.__find_center_side(source_to_center, delta)
+        if (center_side == -1 and ccw) or (center_side == 1 and not ccw):
+            big_arc = False
+        else:
+            big_arc = True
+        
+        self.hcl, self.angle = HelixMovement.__find_horde_center_distance(radius, d.magnitude(), center_side)
+        if big_arc:
+            self.angle = 2*math.pi - self.angle
+        
+        self._length = self.angle * radius
 
     def length(self):
-        return self.__l
-
-    def dir0(self):
-        return self.dir_0
-
-    def dir1(self):
-        return self.dir_1
+        return self._length

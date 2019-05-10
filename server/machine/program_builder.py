@@ -8,7 +8,7 @@ from .modals import tool
 
 class ProgramBuilder(object):
     
-    def __init__(self, table_sender, spindel_sender, previous_state=None):
+    def __init__(self, table_sender, spindel_sender, registers, previous_state=None):
         self.program = program.Program(table_sender, spindel_sender)
         if previous_state is None:
             self.table_state = positioning.PositioningState()
@@ -16,6 +16,9 @@ class ProgramBuilder(object):
         else:
             self.table_state = previous_state[0].copy()
             self.tool_state = previous_state[1].copy()
+
+        self.table_state.tool_diameter = registers["tools"]
+
         self.__subprograms = {}
         self.program_stack = []
         self.finish_cb = None
@@ -81,28 +84,8 @@ class ProgramBuilder(object):
 
     #region coordinate system
     def __set_coordinates(self, x, y, z):
-        index = self.table_state.coord_system
-        if index == self.table_state.CoordinateSystemGroup.no_offset:
-            raise Exception("Can not set offset for global CS")
+        self.table_state.set_coordinate_system(x, y, z)
 
-        offset = self.table_state.offsets[index]
-        if x != None:
-            x0 = self.table_state.pos.x - x
-        else:
-            x0 = offset.x
-
-        if y != None:
-            y0 = self.table_state.pos.y - y
-        else:
-            y0 = offset.y
-
-        if z != None:
-            z0 = self.table_state.pos.z - z
-        else:
-            z0 = offset.z
-
-        cs = self.table_state.CoordinateSystem(x0, y0, z0)
-        self.table_state.offsets[index] = cs
     #endregion coordinate system
 
     #region frame processing
@@ -143,9 +126,10 @@ class ProgramBuilder(object):
                     # set offset registers
                     self.__set_coordinates(x=pos.X, y=pos.Y, z=pos.Z)
                     no_motion = True
-
-        if tool.tool != None:
-            self.program.insert_select_tool(tool.tool, self.tool_select_cb)
+            elif cmd.type == "M":
+                if cmd.value == 6 and tool.tool != None:
+                    self.program.insert_select_tool(tool.tool, self.tool_select_cb)
+                    self.table_state.select_tool(tool.tool)
 
         if feed.feed != None:
             self.__set_feed(feed.feed)

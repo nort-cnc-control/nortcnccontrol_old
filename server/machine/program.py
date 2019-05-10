@@ -22,8 +22,8 @@ class Program(object):
         self.table_sender = table_sender
         self.spindle_sender = spindle_sender
 
-    def __add_action(self, action):
-        self.actions.append((self.index, action, self.line))
+    def __add_action(self, action, extra=None):
+        self.actions.append((self.index, action, self.line, extra))
 
     def inc_index(self):
         self.index += 1
@@ -52,47 +52,47 @@ class Program(object):
             gy3 *= -1
 
         self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
-        self.__add_action(linear.LinearMovement(euclid3.Vector3(0,0,gz1),
+        self.__add_action(linear.LinearMovement(delta=euclid3.Vector3(0,0,gz1),
                                                 feed=config.MAXFEED,
                                                 acc=config.ACCELERATION,
                                                 sender=self.table_sender))
         self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
-        self.__add_action(linear.LinearMovement(euclid3.Vector3(0,0,gz2),
+        self.__add_action(linear.LinearMovement(delta=euclid3.Vector3(0,0,gz2),
                                                 feed=config.MAXFEED,
                                                 acc=config.ACCELERATION,
                                                 sender=self.table_sender))
         self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
-        self.__add_action(linear.LinearMovement(euclid3.Vector3(0,0,gz3),
+        self.__add_action(linear.LinearMovement(delta=euclid3.Vector3(0,0,gz3),
                                                 feed=config.PRECISE_FEED,
                                                 acc=config.ACCELERATION,
                                                 sender=self.table_sender))
         self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
-        self.__add_action(linear.LinearMovement(euclid3.Vector3(gx1, 0, 0),
+        self.__add_action(linear.LinearMovement(delta=euclid3.Vector3(gx1, 0, 0),
                                                 feed=config.MAXFEED,
                                                 acc=config.ACCELERATION,
                                                 sender=self.table_sender))
         self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
-        self.__add_action(linear.LinearMovement(euclid3.Vector3(gx2,0,0),
+        self.__add_action(linear.LinearMovement(delta=euclid3.Vector3(gx2,0,0),
                                                 feed=config.MAXFEED,
                                                 acc=config.ACCELERATION,
                                                 sender=self.table_sender))
         self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
-        self.__add_action(linear.LinearMovement(euclid3.Vector3(gx3,0,0),
+        self.__add_action(linear.LinearMovement(delta=euclid3.Vector3(gx3,0,0),
                                                 feed=config.PRECISE_FEED,
                                                 acc=config.ACCELERATION,
                                                 sender=self.table_sender))
         self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
-        self.__add_action(linear.LinearMovement(euclid3.Vector3(0,gy1,0),
+        self.__add_action(linear.LinearMovement(delta=euclid3.Vector3(0,gy1,0),
                                                 feed=config.MAXFEED,
                                                 acc=config.ACCELERATION,
                                                 sender=self.table_sender))
         self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
-        self.__add_action(linear.LinearMovement(euclid3.Vector3(0,gy2,0),
+        self.__add_action(linear.LinearMovement(delta=euclid3.Vector3(0,gy2,0),
                                                 feed=config.MAXFEED,
                                                 acc=config.ACCELERATION,
                                                 sender=self.table_sender))
         self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
-        self.__add_action(linear.LinearMovement(euclid3.Vector3(0,gy3,0),
+        self.__add_action(linear.LinearMovement(delta=euclid3.Vector3(0,gy3,0),
                                                 feed=config.PRECISE_FEED,
                                                 acc=config.ACCELERATION,
                                                 sender=self.table_sender))
@@ -109,17 +109,17 @@ class Program(object):
             gz3 *= -1
         self.__add_action(action.MCUCmd("M996", sender=self.table_sender))
         self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
-        self.__add_action(linear.LinearMovement(euclid3.Vector3(0,0,gz1),
+        self.__add_action(linear.LinearMovement(delta=euclid3.Vector3(0,0,gz1),
                                                 feed=config.MAXFEED,
                                                 acc=config.ACCELERATION,
                                                 sender=self.table_sender))
         self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
-        self.__add_action(linear.LinearMovement(euclid3.Vector3(0,0,gz2),
+        self.__add_action(linear.LinearMovement(delta=euclid3.Vector3(0,0,gz2),
                                                 feed=config.MAXFEED,
                                                 acc=config.ACCELERATION,
                                                 sender=self.table_sender))
         self.__add_action(action.MCUCmd("M998", sender=self.table_sender))
-        self.__add_action(linear.LinearMovement(euclid3.Vector3(0,0,gz3),
+        self.__add_action(linear.LinearMovement(delta=euclid3.Vector3(0,0,gz3),
                                                 feed=config.PRECISE_FEED,
                                                 acc=config.ACCELERATION,
                                                 sender=self.table_sender))
@@ -127,19 +127,33 @@ class Program(object):
         self.__add_action(action.MCUCmd("M995", sender=self.table_sender))
 
     #region movements
-    def __insert_fast_movement(self, delta, exact_stop, table_state):
-        movement = linear.LinearMovement(delta, feed=table_state.fastfeed,
-                                         acc=table_state.acc,
-                                         exact_stop=exact_stop,
-                                         sender=self.table_sender)
-        self.__add_action(movement)
+    def __insert_linear_movement(self, source, target, offset, exact_stop, table_state, feed):
+        dir0, dir1 = linear.LinearMovement.find_geometry(source, target)
 
-    def __insert_movement(self, delta, exact_stop, table_state):
-        movement = linear.LinearMovement(delta, feed=table_state.feed,
+        move_source = source + offset * dir0
+        move_target = target + offset * dir1
+
+        movement = linear.LinearMovement(delta=move_target - move_source,
+                                         feed=feed,
                                          acc=table_state.acc,
                                          exact_stop=exact_stop,
                                          sender=self.table_sender)
-        self.__add_action(movement)
+
+        extra = {
+            "source" : source,
+            "target" : target,
+            "move_source" : move_source,
+            "move_target" : move_target,
+            "dir0" : dir0,
+            "dir1" : dir1,
+        }
+        self.__add_action(movement, extra)
+
+    def __insert_fast_movement(self, source, target, offset, exact_stop, table_state):
+        self.__insert_linear_movement(source, target, offset, exact_stop, table_state, table_state.fastfeed)
+
+    def __insert_payload_movement(self, source, target, offset, exact_stop, table_state):
+        self.__insert_linear_movement(source, target, offset, exact_stop, table_state, table_state.feed)
 
     def __axis_convert(self, axis):
         if axis == positioning.PositioningState.PlaneGroup.xy:
@@ -150,25 +164,67 @@ class Program(object):
             axis = helix.HelixMovement.Axis.zx
         return axis
 
-    def __insert_arc_R(self, delta, R, exact_stop, table_state):
+    def __insert_arc_R(self, source, target, offset, R, exact_stop, table_state):
         ccw = table_state.motion == positioning.PositioningState.MotionGroup.round_ccw
         axis = self.__axis_convert(table_state.plane)
-        movement = helix.HelixMovement(delta, feed=table_state.feed, r=R,
-                                       axis=axis, ccw=ccw,
-                                       acc=table_state.acc,
-                                       exact_stop=exact_stop,
-                                       sender=self.table_sender)
-        self.__add_action(movement)
 
-    def __insert_arc_IJK(self, delta, I, J, K, exact_stop, table_state):
-        ccw = table_state.motion == positioning.PositioningState.MotionGroup.round_ccw
-        axis = self.__axis_convert(table_state.plane)
-        movement = helix.HelixMovement(delta, feed=table_state.feed, i=I, j=J, k=K,
-                                       axis=axis, ccw=ccw,
+        center, dir0, dir1, arc_angle = helix.HelixMovement.find_geometry(source, target, ccw, axis, r=R)
+
+        #print("Center = ", center)
+        move_source = source + offset * dir0
+        move_target = target + offset * dir1
+
+        movement = helix.HelixMovement(source_to_center=center - move_source,
+                                       delta=move_target - move_source,
+                                       axis=axis,
+                                       ccw=ccw,
+
+                                       feed=table_state.feed,
                                        acc=table_state.acc,
                                        exact_stop=exact_stop,
                                        sender=self.table_sender)
-        self.__add_action(movement)
+
+        extra = {
+            "source" : source,
+            "target" : target,
+            "move_source" : move_source,
+            "move_target" : move_target,
+            "dir0" : dir0,
+            "dir1" : dir1,
+        }
+        self.__add_action(movement, extra)
+
+    def __insert_arc_IJK(self, source, target, offset, I, J, K, exact_stop, table_state):
+        ccw = table_state.motion == positioning.PositioningState.MotionGroup.round_ccw
+        axis = self.__axis_convert(table_state.plane)
+
+        center, dir0, dir1, arc_angle = helix.HelixMovement.find_geometry(source, target, ccw, axis, i=I, j=J, k=K)
+
+        move_source = source + offset * dir0
+        move_target = target + offset * dir1
+        #print("Offset = ", offset)
+        #print("Src = ", move_source)
+        #print("Dst = ", move_target)
+        print("Center = ", center)
+        movement = helix.HelixMovement(source_to_center=center - move_source,
+                                       delta=move_target - move_source,
+                                       axis=axis,
+                                       ccw=ccw,
+
+                                       feed=table_state.feed,
+                                       acc=table_state.acc,
+                                       exact_stop=exact_stop,
+                                       sender=self.table_sender)
+
+        extra = {
+            "source" : source,
+            "target" : target,
+            "move_source" : move_source,
+            "move_target" : move_target,
+            "dir0" : dir0,
+            "dir1" : dir1,
+        }
+        self.__add_action(movement, extra)
 
     def insert_move(self, pos, exact_stop, table_state):
         """
@@ -177,6 +233,7 @@ class Program(object):
         print("*** Insert move ", pos.X, pos.Y, pos.Z)
         #traceback.print_stack()
         #print(table_state.positioning)
+
         if table_state.positioning == positioning.PositioningState.PositioningGroup.absolute:
             cs = table_state.offsets[table_state.coord_system]
 
@@ -201,19 +258,23 @@ class Program(object):
             if pos.Z != None:
                 delta.z = pos.Z
 
+        source = table_state.pos
+        target = source + delta
+        offset = table_state.r_offset_radius
+
         # Normal linear move
         if table_state.motion == positioning.PositioningState.MotionGroup.line:
-            self.__insert_movement(delta, exact_stop, table_state)
+            self.__insert_payload_movement(source, target, offset, exact_stop, table_state)
 
         # Fast linear move
         elif table_state.motion == positioning.PositioningState.MotionGroup.fast_move:
-            self.__insert_fast_movement(delta, exact_stop, table_state)
+            self.__insert_fast_movement(source, target, offset, exact_stop, table_state)
         
         # Arc movement
         elif table_state.motion == positioning.PositioningState.MotionGroup.round_cw or \
              table_state.motion == positioning.PositioningState.MotionGroup.round_ccw:
             if pos.R != None:
-                self.__insert_arc_R(delta, pos.R, exact_stop, table_state)
+                self.__insert_arc_R(source, target, offset, pos.R, exact_stop, table_state)
             else:
                 ci = 0
                 cj = 0
@@ -224,12 +285,12 @@ class Program(object):
                     cj = pos.J
                 if pos.K != None:
                     ck = pos.K
-                self.__insert_arc_IJK(delta, ci, cj, ck, exact_stop, table_state)
+                self.__insert_arc_IJK(source, target, offset, ci, cj, ck, exact_stop, table_state)
 
         else:
             raise Exception("Not implemented %s motion state" % table_state.motion)
 
-        return (table_state.pos + delta)
+        return target
     
     #endregion movements
 

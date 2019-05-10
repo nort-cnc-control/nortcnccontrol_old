@@ -84,6 +84,17 @@ class PositioningState(object):
 
         self.motion = self.MotionGroup.fast_move
         self.plane = self.PlaneGroup.xy
+
+        self.r_offset = self.CutterRadiusCompenstationGroup.no_compensation
+        self.r_offset_axis = euclid3.Vector3(0, 0, 1)
+        self.r_offset_radius = euclid3.Matrix4.new(0,0,0,0,
+                                                   0,0,0,0,
+                                                   0,0,0,0,
+                                                   0,0,0,1)
+
+        self.tool = None
+        self.tool_diameter = {}
+
         self.positioning = self.PositioningGroup.absolute
         self.feed_mode = self.FeedRateGroup.feed
         self.UnitsGroup = self.UnitsGroup.mms
@@ -103,6 +114,18 @@ class PositioningState(object):
                 self.CoordinateSystemGroup.offset_6: self.CoordinateSystem(0, 0, 0),
         }
 
+    def __build_offset_matrix(self, r, sign):
+        if sign == -1:
+            r = -r
+        a1 = self.r_offset_axis[0] * r
+        a2 = self.r_offset_axis[1] * r
+        a3 = self.r_offset_axis[2] * r
+        m = euclid3.Matrix4.new(0, a3, -a2, 0,
+                                -a3, 0, a1, 0,
+                                a2, -a1, 0, 0,
+                                0, 0, 0, 1)
+        return m
+
     def process_frame(self, frame):
         for cmd in frame.commands:
             if cmd.type != "G":
@@ -121,6 +144,20 @@ class PositioningState(object):
                 self.plane = self.PlaneGroup.zx
             elif cmd.value == 19:
                 self.plane = self.PlaneGroup.yz
+            elif cmd.value == 40:
+                self.r_offset = self.CutterRadiusCompenstationGroup.no_compensation
+                self.r_offset_radius = euclid3.Matrix4.new(0,0,0,0,
+                                                           0,0,0,0,
+                                                           0,0,0,0,
+                                                           0,0,0,1)
+            elif cmd.value == 41:
+                self.r_offset = self.CutterRadiusCompenstationGroup.compensate_left
+                if self.tool in self.tool_diameter:
+                    self.r_offset_radius = self.__build_offset_matrix(self.tool_diameter[self.tool]/2, -1)
+            elif cmd.value == 42:
+                self.r_offset = self.CutterRadiusCompenstationGroup.compensate_right
+                if self.tool in self.tool_diameter:
+                    self.r_offset_radius = self.__build_offset_matrix(self.tool_diameter[self.tool]/2, 1)
             elif cmd.value == 53:
                 self.coord_system = self.CoordinateSystemGroup.no_offset
             elif cmd.value == 54:
@@ -141,6 +178,44 @@ class PositioningState(object):
                 self.positioning = self.PositioningGroup.relative
             elif cmd.value == 94:
                 self.feed_mode = self.FeedRateGroup.feed
+
+    def set_coordinate_system(self, x, y, z):
+        if self.coord_system == self.CoordinateSystemGroup.no_offset:
+            raise Exception("Can not set offset for global CS")
+
+        offset = self.offsets[self.coord_system]
+        if x != None:
+            x0 = self.pos.x - x
+        else:
+            x0 = offset.x
+
+        if y != None:
+            y0 = self.pos.y - y
+        else:
+            y0 = offset.y
+
+        if z != None:
+            z0 = self.pos.z - z
+        else:
+            z0 = offset.z
+
+        cs = self.CoordinateSystem(x0, y0, z0)
+        self.offsets[self.coord_system] = cs
+
+    def select_tool(self, tool):
+        self.tool = tool
+        if self.tool in self.tool_diameter:
+            if self.r_offset == self.CutterRadiusCompenstationGroup.no_compensation:
+                self.r_offset_radius = euclid3.Matrix4.new(0,0,0,0,
+                                                           0,0,0,0,
+                                                           0,0,0,0,
+                                                           0,0,0,1)
+            elif self.r_offset == self.CutterRadiusCompenstationGroup.compensate_left:
+                self.r_offset_radius = self.__build_offset_matrix(self.tool_diameter[self.tool]/2, -1)
+            elif self.r_offset == self.CutterRadiusCompenstationGroup.compensate_right:
+                self.r_offset_radius = self.__build_offset_matrix(self.tool_diameter[self.tool]/2, 1)
+        else:
+            self.r_offset_radius = 0
 
     def copy(self):
         return copy.copy(self)

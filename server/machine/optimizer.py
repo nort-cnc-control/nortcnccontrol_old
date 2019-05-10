@@ -14,7 +14,7 @@ class Optimizer(object):
 
     def __fill_max_feed(self, actions):
         # set maximal feed for each action
-        for action in actions:
+        for action, _ in actions:
             action.max_feed = min(self.max_feed, action.feed / 60.0)
             # set maximal feed for arcs
             try:
@@ -43,22 +43,22 @@ class Optimizer(object):
     def __fill_max_feed_01(self, actions):
         # set maximal feed0 and feed1
         for i in range(len(actions)):
-            action = actions[i]
+            action = actions[i][0]
 
-            dir0 = action.dir0()
+            dir0 = actions[i][1]["dir0"]
             if i > 0:
-                prevdir = actions[i-1].dir1()
-                prevmf = actions[i-1].max_feed
+                prevdir = actions[i-1][1]["dir1"]
+                prevmf = actions[i-1][0].max_feed
             else:
                 prevdir = euclid3.Vector3(0,0,0)
                 prevmf = 0
 
             action.max_feed0 = min([self.__max_feed_jerk(prevdir, dir0), action.max_feed, prevmf])
 
-            dir1 = action.dir1()
+            dir1 = actions[i][1]["dir1"]
             if i < len(actions)-1:
-                nextdir = actions[i+1].dir0()
-                nextmf = actions[i+1].max_feed
+                nextdir = actions[i+1][1]["dir0"]
+                nextmf = actions[i+1][0].max_feed
             else:
                 nextdir = euclid3.Vector3(0,0,0)
                 nextmf = 0
@@ -111,17 +111,17 @@ class Optimizer(object):
     def __process_chain(self, actions):
         if len(actions) == 0:
             return
-        limits = [(0, actions[0].max_feed0)]
+        limits = [(0, actions[0][0].max_feed0)]
         x = 0
-        for action in actions:
+        for action, _ in actions:
             x += action.length()
             limits.append((x, action.max_feed1))
 
         for i in range(len(limits) - 1):
             f0, f, f1 = self.__feeds(limits, i)
-            actions[i].feed0 = f0*60
-            actions[i].feed = min(f, actions[i].max_feed)*60
-            actions[i].feed1 = f1*60
+            actions[i][0].feed0 = f0*60
+            actions[i][0].feed = min(f, actions[i][0].max_feed)*60
+            actions[i][0].feed1 = f1*60
 
     # optimize chain
     def __optimize_chain(self, actions):
@@ -136,16 +136,16 @@ class Optimizer(object):
     def optimize(self, program):
         chain = []
 
-        for (_, action, _) in program.actions:
+        for (_, action, _, extra) in program.actions:
             if action.is_moving == False:
                 if len(chain) > 0:
                     self.__optimize_chain(chain)
                     chain = []
                 continue
-            chain.append(action)
+            chain.append((action, extra))
             if action.exact_stop == True:
                 self.__optimize_chain(chain)
-                chain = []  
+                chain = []
 
         if len(chain) > 0:
             self.__optimize_chain(chain)
