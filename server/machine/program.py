@@ -9,7 +9,7 @@ from .actions import program
 
 from .modals import positioning
 
-from common import config
+from .common import config
 
 import euclid3
 
@@ -170,7 +170,7 @@ class Program(object):
 
         center, dir0, dir1, arc_angle = helix.HelixMovement.find_geometry(source, target, ccw, axis, r=R)
 
-        #print("Center = ", center)
+        print("Center(R) = ", center)
         move_source = source + offset * dir0
         move_target = target + offset * dir1
 
@@ -205,7 +205,7 @@ class Program(object):
         #print("Offset = ", offset)
         #print("Src = ", move_source)
         #print("Dst = ", move_target)
-        print("Center = ", center)
+        print("Center(IJK) = ", center)
         movement = helix.HelixMovement(source_to_center=center - move_source,
                                        delta=move_target - move_source,
                                        axis=axis,
@@ -227,9 +227,6 @@ class Program(object):
         self.__add_action(movement, extra)
 
     def insert_move(self, pos, exact_stop, table_state):
-        """
-        
-        """
         print("*** Insert move ", pos.X, pos.Y, pos.Z)
         #traceback.print_stack()
         #print(table_state.positioning)

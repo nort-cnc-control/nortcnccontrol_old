@@ -202,7 +202,7 @@ class Machine(object):
         action = None
 
         while True:
-            print("State = ", state)
+            #print("State = ", state)
             if state is self.StateMachine.WorkContinue:
                 if not self.__has_cmds():        
                     state = self.StateMachine.End

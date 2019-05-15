@@ -1,12 +1,11 @@
-# Left/Right orientation for hardware axes
-XY_RIGHT = True
-YZ_RIGHT = True
-ZX_RIGHT = True
 
 # If hardware axes is inverted
 X_INVERT = False
-Y_INVERT = False
+Y_INVERT = True
 Z_INVERT = True
+
+# Left/Right orientation for hardware axes
+PLANES_RIGHT = (X_INVERT != Y_INVERT) != Z_INVERT
 
 # size of table
 SIZE_X = 224.0

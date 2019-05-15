@@ -122,7 +122,11 @@ class Optimizer(object):
             actions[i][0].feed0 = f0*60
             actions[i][0].feed = min(f, actions[i][0].max_feed)*60
             actions[i][0].feed1 = f1*60
-
+            if actions[i][0].feed < 1:
+                print("Zero feed: ", actions[i][0])
+                print("f = ", f)
+                print("max_feed = ", actions[i][0].max_feed)
+                print("length = ", actions[i][0].length())
     # optimize chain
     def __optimize_chain(self, actions):
         self.__fill_max_feed(actions)
