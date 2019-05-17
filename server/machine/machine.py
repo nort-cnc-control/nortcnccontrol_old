@@ -120,10 +120,11 @@ class Machine(object):
             self.program = self.empty_program
 
     def __action_started(self, action):
+        i = None
         for i in range(len(self.program.actions)):
             if self.program.actions[i][1] == action:
                 break
-        if i >= len(self.program.actions):
+        if i is None or i >= len(self.program.actions):
             return
         self.line_selected(self.program.actions[i][2])
 
