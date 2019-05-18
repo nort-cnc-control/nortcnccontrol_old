@@ -16,6 +16,7 @@ class Action(object):
         self.caching = False
         self.is_pause = False
         self.is_moving = False
+        self.error = False
 
     def run(self):
         return self.act()
@@ -79,7 +80,12 @@ class MCUAction(Action):
         self.table_sender.dropped += self.__received_dropped
         self.table_sender.completed += self.__received_completed
         self.table_sender.started += self.__received_started
+        self.table_sender.error += self.__received_error
+        self.table_sender.queued += self.__received_queued
         self.__sending = False
+        self.command_received = threading.Event()
+        self.crc_error = False
+        self.is_received = False
 
     @abc.abstractmethod
     def command(self):
@@ -91,10 +97,17 @@ class MCUAction(Action):
         self.table_sender.completed -= self.__received_completed
         self.table_sender.started -= self.__received_started
         self.table_sender.queued -= self.__received_queued
-        
-    def __received_queued(self, nid):
+        self.table_sender.error -= self.__received_error
+
+    def __indexed(self, nid):
+        print("INDEXED ", nid)
         self.Nid = int(nid)
-        
+
+    def __received_queued(self, nid):
+        if int(nid) == self.Nid:       
+            self.command_received.set()
+            self.is_received = True
+
     def __received_started(self, nid):
         if int(nid) == self.Nid:
             self.action_started(self)
@@ -102,26 +115,35 @@ class MCUAction(Action):
     def __received_dropped(self, nid):
         nid = int(nid)
         if nid == self.Nid:
+            self.is_received = True
             self.dropped = True
             self.finished.set()
+            self.command_received.set()
+
+    def __received_error(self, error):
+        if self.is_received:
+            return
+        if error[-9:] == "CRC error":
+            self.crc_error = True
+        self.error = True
 
     def __received_completed(self, nid):
         nid = int(nid)
         if nid == self.Nid:
-            print("Action %i completed" % nid)
+            print("Action %i completed" % nid, self)
             self.completed.set()
             self.finished.set()
             self.action_completed(self)
 
     def act(self):
-        self.table_sender.queued += self.__received_queued
+        self.table_sender.indexed += self.__indexed
         cmd = self.command()
         self.completed.clear()
         if not self.table_sender.has_slots.is_set():
-            print("Waiting for slots")
-            self.table_sender.has_slots.wait()
+            print("No slots")
+            return False
         self.table_sender.send_command(cmd)
-        self.table_sender.queued -= self.__received_queued
+        self.table_sender.indexed -= self.__indexed
         return True
 
 # Movement actions

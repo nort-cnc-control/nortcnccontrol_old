@@ -139,7 +139,7 @@ class Controller(object):
                     self.__print_state()
                 elif msg["type"] == "command":
                     if msg["command"] == "reset":
-                        self.__run_cmd(self.machine.Reset)
+                        self.__run_cmd(self.machine.WorkReset)
                         self.state = "init"
                         self.__print_state()
                     elif msg["command"] == "start":
@@ -187,7 +187,7 @@ emulate_t = common.config.EMULATE_TABLE
 emulate_s = common.config.EMULATE_SPINDEL
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], "eEp:b:", ["port=", "baudrate="])
+    opts, args = getopt.getopt(sys.argv[1:], "eEp:b:r:", ["port=", "baudrate=", "rs485="])
 except getopt.GetoptError as err:
     # print help information and exit:
     print(err) # will print something like "option -a not recognized"

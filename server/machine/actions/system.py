@@ -6,5 +6,14 @@ class TableReset(action.Action):
         self.is_pause = True
     
     def act(self):
-        self.sender.send_command("M999", wait=False)
+        self.sender.send_command("M999")
         return False
+
+class TableUnlock(action.MCUAction):
+
+    def __init__(self, *args, **kwargs):
+        action.MCUAction.__init__(self, *args, **kwargs)
+        self.caching = False
+
+    def command(self):
+        return "M800"

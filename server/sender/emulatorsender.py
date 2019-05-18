@@ -8,8 +8,8 @@ class EmulatorSender(object):
     started = event.EventEmitter()
     dropped = event.EventEmitter()
     mcu_reseted = event.EventEmitter()
-    has_slots = threading.Event()
-    
+    error = event.EventEmitter()
+
     has_slots = threading.Event()
 
     def __init__(self):

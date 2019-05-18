@@ -61,11 +61,15 @@ class Machine(object):
         self.running        = event.EventEmitter()
         self.paused         = event.EventEmitter()
         self.finished       = event.EventEmitter()
+        self.error          = event.EventEmitter()
         self.line_selected  = event.EventEmitter()
         self.tool_selected  = event.EventEmitter()
-        self.lastaction = None
         self.reset = False
         self.action_rdy = threading.Event()
+        self.__table_reseted_ev = threading.Event()
+        self.current_wait = None
+        self.c_actions = []
+        self.nc_action = None
         self.opt = Optimizer(common.config.JERKING, common.config.ACCELERATION, common.config.MAXFEED)
         # loaded program
         self.user_program = None
@@ -79,6 +83,7 @@ class Machine(object):
         # states
         self.previous_state = None
         self.work_init(self.empty_program)
+        self.table_sender.mcu_reseted += self.__table_reseted
         print("done")
 
     def work_init(self, program):
@@ -89,10 +94,12 @@ class Machine(object):
         self.reset = False
         self.display_paused = False
         self.display_finished = True
-        self.lastaction = None
         for (_, action, _, _) in self.program.actions:
             action.completed.clear()
             action.finished.clear()
+            action.error = False
+            action.crc_error = False
+            action.is_received = False
 
     #region Add UI action 
 
@@ -104,6 +111,8 @@ class Machine(object):
         self.tool_selected(tool)
 
     def __finished(self, action):
+        if self.is_finished:
+            return
         self.is_running = False
         self.is_finished = True
         self.finished(self.display_finished)
@@ -156,12 +165,13 @@ class Machine(object):
         
         self.work_init(self.builder.build_program([frame]))
         self.display_finished = False
+        self.table_sender.send_command("M800")
         self.WorkContinue()
 
     def __has_cmds(self):
         return self.iter < len(self.program.actions)
 
-    def __get_cacheable(self):
+    def __get_movements(self):
         actions = []
         while self.__has_cmds():
             action = self.program.actions[self.iter][1]
@@ -171,120 +181,219 @@ class Machine(object):
             self.iter += 1
         return actions
 
-    def __get_action(self):
+    def __get_nc_action(self):
         if not self.__has_cmds():
             return None
         action = self.program.actions[self.iter][1]
+        if action.caching:
+            return None
         self.iter += 1
         return action
 
-    class StateMachine(Enum):
-        WorkContinue = 1
-        ProcessBlock = 2
-        WaitSlots = 3
-        SendCacheable = 4
-        WaitCacheable = 5
-        ProcessNotCacheable = 6
-        RunNotCacheable = 7
-        WaitNotCacheable = 8
-        Interrupt = 9
-        End = 10
-        Reseted = 11
-        WaitCommand = 12
+    def WorkReset(self):
+        print("RESET")
+        act = system.TableReset(sender=self.table_sender)
+        act.run()
+        self.reset = True
 
+        self.table_sender.reset()
+        self.spindle_sender.stop()
+        self.state = None
+        self.builder = None
+        if self.program is not self.user_program and self.program is not self.empty_program:
+            self.program.dispose()
+            self.program = self.empty_program
+    
+    def __abort_actions(self):
+        for action in self.c_actions:
+            action.abort()
+        if self.nc_action is not None:
+            self.nc_action.abort()
+
+    def __wait_event(self, ev):
+        self.current_wait = ev
+        self.current_wait.wait()
+
+        if self.reset:
+            self.__abort_actions()
+            return True
+        return False
+
+    def __table_reseted(self):
+        self.sm_state = self.StateMachine.Idle
+        self.reset = True
+        if self.current_wait is not None:
+            self.current_wait.set()
+
+        self.table_sender.reset()
+        self.__abort_actions()
+        self.spindle_sender.stop()
+        self.__table_reseted_ev.set()
+        
+
+    class StateMachine(Enum):
+        Idle = 0
+        BlockStart = 1
+
+        ProcessSegment = 2
+
+        WaitSlots = 3
+        SendMovement = 4
+        WaitMCUAnswer = 5
+        WaitMovements = 6
+
+        ExecuteNotCacheable = 7
+        WaitNotCacheable = 8
+
+        Reset = 9
+        ProgramInterrupted = 11
+
+        BlockFinished = 12
+        ProgramFinished = 13
+
+    #   Program Start
+    #          |               ---------------->------------------
+    #          v               |                                 |
+    #  -- Block Start -> Process Segment ----                    |       Reset command
+    #  |     ^            ^    |            |                    |              |
+    #  |     |            |    |            v                    |              v
+    #  |     |     --------    |       Wait Slots  <--------     |          Send Reset CMD to MCU
+    #  |     |     |           |            |              |     |              |
+    #  |     |     |           |            v              |     |              v
+    #  |     |     |           |    Send movement to MCU   |     |      Receive Reset from MCU <---- MCU hardware reset
+    #  |     |     |           |            |   ^          |     |              |
+    #  |     |     |           |            |   |          |     |              |
+    #  |     |     |           |       Wait answer ---------     |              |
+    #  |     |     |           |            |                    |              |
+    #  |     |     |           |            |                    |              |
+    #  |     |     |           |            v                    |              v
+    #  |     |     |           |       Wait last movement        |         Stop spindel
+    #  |     |     |           |          |     |                |              |
+    #  |   Get Cmd |           |          |     |                |              v
+    #  |     ^     |           v          |     |                |         Emergency state
+    #  |     |     |    Run NC action <----     |                |
+    #  |     |     |           |                |                |
+    #  |     |     |           v                |                |
+    #  |     |     ------ Wait NC action        |                |
+    #  |     |               |     |            |                |
+    #  |     |               |     |            |                |
+    #  |  Block Finished <----     |            |                |
+    #  |     |                     |            |                |
+    #  |     v                     |            |                |
+    #  --> Program Finished <-------------------------------------
+    #
     def WorkContinue(self):
         self.reset = False
         self.is_running = True
         self.is_finished = False
         self.running()
 
-        state = self.StateMachine.WorkContinue
-        actions = []
-        action = None
+        self.sm_state = self.StateMachine.BlockStart
+        
+        self.c_actions = []
+        self.action = None
+        self.last_c_action = None
+        self.nc_action = None
+        self.current_wait = None
 
         while True:
-            #print("State = ", state)
-            if state is self.StateMachine.WorkContinue:
-                if not self.__has_cmds():        
-                    state = self.StateMachine.End
+            print("State = ", self.sm_state)
+            if self.sm_state is self.StateMachine.BlockStart:
+                if not self.__has_cmds():
+                    self.sm_state = self.StateMachine.ProgramFinished
                 else:
-                    state = self.StateMachine.ProcessBlock
+                    self.sm_state = self.StateMachine.ProcessSegment
+                continue
+            elif self.sm_state is self.StateMachine.ProgramFinished:
+                self.__finished(None)
+                break
+            elif self.sm_state is self.StateMachine.BlockFinished:
+                break
+
+            # Segment = (cacheable actions)*n [not cacheable action]
+            elif self.sm_state is self.StateMachine.ProcessSegment:
+                self.c_actions = self.__get_movements()
+                self.nc_action = self.__get_nc_action()
+                if len(self.c_actions) > 0:
+                    self.sm_state = self.StateMachine.WaitSlots
+                    self.last_c_action = None
+                elif self.nc_action is not None:
+                    self.sm_state = self.StateMachine.ExecuteNotCacheable
+                else:
+                    self.sm_state = self.StateMachine.ProgramFinished
+                continue
+
+            # Table movements
+            elif self.sm_state is self.StateMachine.WaitSlots:
+                if self.__wait_event(self.table_sender.has_slots):
+                    self.sm_state = self.StateMachine.Reset
                     continue
-            elif state is self.StateMachine.End:
-                if not self.is_finished:
-                    self.__finished(None)
-                break
-            elif state is self.StateMachine.Reseted:
-                self.reset = True
-                break
-            elif state is self.StateMachine.WaitCommand:
-                break
-            elif state is self.StateMachine.ProcessBlock:
-                actions = self.__get_cacheable()
-                if len(actions) > 0:
-                    self.lastaction = None
-                    state = self.StateMachine.WaitSlots
-                else:
-                    state = self.StateMachine.ProcessNotCacheable
-            elif state is self.StateMachine.ProcessNotCacheable:
-                action = self.__get_action()
-                if action.is_pause is True:
-                    state = self.StateMachine.Interrupt
-                else:
-                    state = self.StateMachine.RunNotCacheable
+                self.sm_state = self.StateMachine.SendMovement
                 continue
-            elif state is self.StateMachine.WaitSlots:
-                self.table_sender.has_slots.wait()
-                if self.reset:
-                    state = self.StateMachine.Reseted
-                else:
-                    state = self.StateMachine.SendCacheable
+            elif self.sm_state is self.StateMachine.SendMovement:
+                self.action = self.c_actions[0]
+                self.action.run()
+                self.sm_state = self.StateMachine.WaitMCUAnswer
                 continue
-            elif state is self.StateMachine.SendCacheable:
-                action = actions[0]
-                action.run()
-                if self.reset:
-                    state = self.StateMachine.Reseted
+            elif self.sm_state == self.StateMachine.WaitMCUAnswer:
+                if self.__wait_event(self.action.command_received):
+                    self.sm_state = self.StateMachine.Reset
+                    continue
+                if self.action.crc_error:
+                    self.sm_state = self.StateMachine.SendMovement
+                    continue
+                if self.action.error:
+                    self.sm_state = self.StateMachine.Idle
+                    self.error()
+                    break
+                if not self.action.dropped:
+                    self.last_c_action = self.action
+                self.c_actions = self.c_actions[1:]
+                if len(self.c_actions) > 0:
+                    self.sm_state = self.StateMachine.WaitSlots
                 else:
-                    if not action.dropped:
-                        self.lastaction = action
-                    actions = actions[1:]
-                    if len(actions) > 0:
-                        state = self.StateMachine.WaitSlots
-                    else:
-                        state = self.StateMachine.WaitCacheable
+                    self.sm_state = self.StateMachine.WaitMovements
                 continue
-            elif state is self.StateMachine.WaitCacheable:
-                if self.lastaction is not None:
-                    self.lastaction.finished.wait()
+            elif self.sm_state is self.StateMachine.WaitMovements:
+                if self.last_c_action is not None:
+                    if self.__wait_event(self.last_c_action.finished):
+                        self.sm_state = self.StateMachine.Reset
+                        continue
+
+                if not self.__has_cmds():
+                    self.sm_state = self.StateMachine.ProgramFinished
+                else:
+                    self.sm_state = self.StateMachine.ExecuteNotCacheable
                 
-                if self.reset:
-                    state = self.StateMachine.Reseted
-                elif not self.__has_cmds():
-                    state = self.StateMachine.End
-                else:
-                    state = self.StateMachine.ProcessNotCacheable
+                self.last_c_action = None
                 continue
-            elif state is self.StateMachine.RunNotCacheable:
-                action.run()
-                state = self.StateMachine.WaitNotCacheable
+
+            # Not cacheable actions
+            elif self.sm_state is self.StateMachine.ExecuteNotCacheable:
+                self.nc_action.run()
+                self.sm_state = self.StateMachine.WaitNotCacheable
                 continue
-            elif state is self.StateMachine.WaitNotCacheable:
-                action.finished.wait()
-                if self.reset:
-                    state = self.StateMachine.Reseted
+            elif self.sm_state is self.StateMachine.WaitNotCacheable:
+                if self.__wait_event(self.nc_action.finished):
+                    self.sm_state = self.StateMachine.Reset
+                    continue
+                if self.nc_action.is_pause is True:
+                    self.sm_state = self.StateMachine.BlockFinished
                 elif self.__has_cmds():
-                    state = self.StateMachine.ProcessBlock
+                    self.sm_state = self.StateMachine.ProcessSegment
                 else:
-                    state = self.StateMachine.End
+                    self.sm_state = self.StateMachine.ProgramFinished
+                self.nc_action = None
                 continue
-            elif state is self.StateMachine.Interrupt:
-                action.run()
-                if self.is_finished:
-                    state = self.StateMachine.End
-                else:
-                    state = self.StateMachine.WaitCommand
-                continue
+
+            # Reset
+            elif self.sm_state is self.StateMachine.Reset:
+                act = system.TableReset(sender=self.table_sender)
+                act.run()
+                self.__table_reseted_ev.wait()
+                self.__finished(None)
+                break
+
         self.is_running = False
 
     def WorkStart(self):
@@ -295,23 +404,8 @@ class Machine(object):
             self.work_init(self.empty_program)  
         else:
             self.work_init(self.user_program)
+        self.table_sender.send_command("M800")
         return self.WorkContinue()
-
-    def Reset(self):
-        print("RESET")
-        act = system.TableReset(sender=self.table_sender)
-        act.run()
-        self.reset = True
-        if self.lastaction is not None:
-            self.lastaction.abort()
-        self.table_sender.reset()
-        self.spindle_sender.stop()
-        self.state = None
-        self.builder = None
-        if self.program is not self.user_program and self.program is not self.empty_program:
-            self.program.dispose()
-            self.program = self.empty_program
-        self.work_init(self.empty_program)
 
     def WorkStop(self):
         self.work_init(self.empty_program)
