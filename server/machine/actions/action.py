@@ -100,7 +100,6 @@ class MCUAction(Action):
         self.table_sender.error -= self.__received_error
 
     def __indexed(self, nid):
-        print("INDEXED ", nid)
         self.Nid = int(nid)
 
     def __received_queued(self, nid):
@@ -130,7 +129,7 @@ class MCUAction(Action):
     def __received_completed(self, nid):
         nid = int(nid)
         if nid == self.Nid:
-            print("Action %i completed" % nid, self)
+            print("Action %i completed" % nid)
             self.completed.set()
             self.finished.set()
             self.action_completed(self)
