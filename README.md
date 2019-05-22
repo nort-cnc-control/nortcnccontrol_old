@@ -18,7 +18,8 @@ No realtime kernel is required!
 Server creates `/tmp/cnccontrol` unix socket, so user should have enougth permissions for this.
 
 ### Supported options
-- -e - emulation mode
+- -e - emulate table
+- -E - emulate spindel
 - -r, --rs485 - port, where spindel inverter connected. default=/dev/ttyUSB1
 - -p, --port - port, where board with https://github.com/vladtcvs/cnccontrol_rt connected. default=/dev/ttyUSB0
 - -b, --baud - baudrate for board communication. default=9600
