@@ -139,13 +139,14 @@ class Optimizer(object):
     # and optimize each chain
     def optimize(self, program):
         chain = []
-
+        print("Start optimization")
         for (_, action, _, extra) in program.actions:
-            if action.is_moving == False:
+            if action.is_moving == False or extra is None:
                 if len(chain) > 0:
                     self.__optimize_chain(chain)
                     chain = []
                 continue
+
             chain.append((action, extra))
             if action.exact_stop == True:
                 self.__optimize_chain(chain)
@@ -153,3 +154,4 @@ class Optimizer(object):
 
         if len(chain) > 0:
             self.__optimize_chain(chain)
+        print("Optimized")

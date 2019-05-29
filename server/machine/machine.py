@@ -360,7 +360,7 @@ class Machine(object):
                         self.sm_state = self.StateMachine.Reset
                         continue
 
-                if not self.__has_cmds():
+                if self.nc_action is None:
                     self.sm_state = self.StateMachine.ProgramFinished
                 else:
                     self.sm_state = self.StateMachine.ExecuteNotCacheable
