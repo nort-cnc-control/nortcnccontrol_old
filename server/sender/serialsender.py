@@ -148,9 +148,9 @@ class SerialSender(object):
         self.indexed(self.__id)
         cmd = ("N%i " % self.__id) + command
         encoded = bytes(cmd, "ascii")
-        s = sum(encoded) % 256
-        crc = bytes([s])
-        msg = crc + encoded + b'\n'
+        s = sum(encoded)
+        crc = bytes("*%X" % s, "ascii")
+        msg = encoded + crc + b'\n'
         print("Sending command %s" % msg)
         self.__ser.write(msg)
         self.__ser.flush()
