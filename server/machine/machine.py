@@ -229,7 +229,6 @@ class Machine(object):
         self.__abort_actions()
         self.spindle_sender.stop()
         self.__table_reseted_ev.set()
-        
 
     class StateMachine(Enum):
         Idle = 0

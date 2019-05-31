@@ -39,10 +39,16 @@ class SerialSender(object):
                 resp = None
                 try:
                     resp = self.ser.readline()
-                    ans = resp.decode("ascii")
                 except Exception as e:
+                    print("Serial port read error", e)
+                    self.ev_protocolerror(True, "Serial port read error")
+                    break
+
+                try:
+                    ans = resp.decode("ascii")
+                except:
                     print("Can not decode answer: ", e)
-                    self.ev_protocolerror(resp)
+                    self.ev_protocolerror(False, resp)
                     continue
 
                 ans = str(ans).lstrip(chr(0)).strip()

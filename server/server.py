@@ -18,6 +18,7 @@ import getopt
 import sys
 
 import os
+import signal
 import socket
 import json
 
@@ -47,6 +48,8 @@ class Controller(object):
         self.clientaddr = None
 
         self.table_sender = table_sender
+        self.table_sender.protocol_error += self.__protocol_error
+
         self.spindel_sender = spindel_sender
         self.machine = machine.machine.Machine(self.table_sender, self.spindel_sender)
         self.parser = machine.parser.GLineParser()
@@ -56,6 +59,11 @@ class Controller(object):
         self.machine.line_selected += self.__line_selected
 
         self.work_thread = None
+
+    def __protocol_error(self, fatal, msg):
+        if fatal:
+            self.state = "error"
+            os.kill(os.getpid(), signal.SIGKILL)
 
     def __continue_on_pause(self, reason):
         # send RPC message about event
