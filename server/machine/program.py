@@ -28,6 +28,9 @@ class Program(object):
     def inc_index(self):
         self.index += 1
 
+    def insert_unlock(self):
+        self.__add_action(action.MCUCmd("M800", sender=self.table_sender))
+
     def insert_homing(self):
         gz1 = -config.SIZE_Z
         gz2 = 2

@@ -101,7 +101,7 @@ class SerialSender(object):
                     continue
 
                 print("Unknown answer from MCU: %s" % ans)
-                self.ev_protocolerror(ans)
+                self.ev_protocolerror(False, ans)
 
     indexed = event.EventEmitter()
     queued = event.EventEmitter()

@@ -182,6 +182,7 @@ class ProgramBuilder(object):
             self.__save_label(id, frames[id])
 
         id = 0
+        self.program.insert_unlock()
         while id < len(frames):
             next = self.__process(id, frames[id])
             if next is None:

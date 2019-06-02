@@ -165,7 +165,6 @@ class Machine(object):
         
         self.work_init(self.builder.build_program([frame]))
         self.display_finished = False
-        self.table_sender.send_command("M800")
         self.WorkContinue()
 
     def __has_cmds(self):
@@ -403,7 +402,6 @@ class Machine(object):
             self.work_init(self.empty_program)  
         else:
             self.work_init(self.user_program)
-        self.table_sender.send_command("M800")
         return self.WorkContinue()
 
     def WorkStop(self):
