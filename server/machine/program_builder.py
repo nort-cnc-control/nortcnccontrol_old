@@ -106,6 +106,10 @@ class ProgramBuilder(object):
     def __process_move(self, frame):
         self.table_state.process_frame(frame)
         pos = arguments.Positioning(frame)
+
+        if pos is not None and self.table_state.units is self.table_state.UnitsGroup.inches:
+            pos.as_inches()
+
         feed = arguments.Feed(frame)
         stop = arguments.ExactStop(frame)
         tool = arguments.Tool(frame)

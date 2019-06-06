@@ -43,6 +43,21 @@ class Positioning(object):
                     raise Exception("K meets 2 times")
                 self.K = cmd.value
 
+    def as_inches(self):
+        if self.X is not None:
+            self.X *= 25.4
+        if self.Y is not None:
+            self.Y *= 25.4
+        if self.Z is not None:
+            self.Z *= 25.4
+        if self.R is not None:
+            self.R *= 25.4
+        if self.I is not None:
+            self.I *= 25.4
+        if self.J is not None:
+            self.J *= 25.4
+        if self.K is not None:
+            self.K *= 25.4
 
 class Feed(object):
 

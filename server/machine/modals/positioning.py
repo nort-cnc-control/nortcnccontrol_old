@@ -97,7 +97,7 @@ class PositioningState(object):
 
         self.positioning = self.PositioningGroup.absolute
         self.feed_mode = self.FeedRateGroup.feed
-        self.UnitsGroup = self.UnitsGroup.mms
+        self.units = self.UnitsGroup.mms
         self.CRC = self.CutterRadiusCompenstationGroup.no_compensation
         self.TLO = self.ToolLengthOffsetGroup.no_compensation
         self.Spindle = self.SpindleSpeedGroup.rpm_speed
@@ -144,6 +144,10 @@ class PositioningState(object):
                 self.plane = self.PlaneGroup.zx
             elif cmd.value == 19:
                 self.plane = self.PlaneGroup.yz
+            elif cmd.value == 20:
+                self.units = self.UnitsGroup.inches
+            elif cmd.value == 21:
+                self.units = self.UnitsGroup.mms
             elif cmd.value == 40:
                 self.r_offset = self.CutterRadiusCompenstationGroup.no_compensation
                 self.r_offset_radius = euclid3.Matrix4.new(0,0,0,0,
