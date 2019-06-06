@@ -12,3 +12,11 @@ class WaitResume(action.InstantAction):
     def perform(self):
         self.paused()
         return False
+
+class Break(action.Action):
+    # do nothing
+    def act(self):
+        self.completed.set()
+        self.finished.set()
+        self.action_completed(self)
+        return True

@@ -139,8 +139,11 @@ class ProgramBuilder(object):
             self.__set_feed(feed.feed)
 
         if pos.is_moving and not no_motion:
-            self.table_state.pos = self.program.insert_move(pos, stop.exact_stop, self.table_state)
+            self.table_state.pos = self.program.insert_move(pos, self.table_state)
             #print("Pos = ", self.table_state.pos)
+
+        if stop.exact_stop is True:
+            self.program.insert_stop()
 
     def __process_end(self, id, frame):
 

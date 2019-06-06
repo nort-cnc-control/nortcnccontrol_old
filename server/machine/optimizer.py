@@ -148,9 +148,6 @@ class Optimizer(object):
                 continue
 
             chain.append((action, extra))
-            if action.exact_stop == True:
-                self.__optimize_chain(chain)
-                chain = []
 
         if len(chain) > 0:
             self.__optimize_chain(chain)
