@@ -115,7 +115,7 @@ class SerialSender(object):
     __reseted_ev = event.EventEmitter()
     has_slots = threading.Event()
     
-    def __init__(self, port, bdrate):
+    def __init__(self, port, bdrate, timeout):
         self.__id = 0
         self.__qans = threading.Event()
         self.__reseted = False
@@ -124,6 +124,7 @@ class SerialSender(object):
 
         self.port = port
         self.baudrate = bdrate
+        self.timeout = timeout
         self.__ser = serial.Serial(self.port, self.baudrate,
                                  bytesize=8, parity='N', stopbits=1)
         self.__listener = self.SerialReceiver(self.__ser, self.__finish_event,
