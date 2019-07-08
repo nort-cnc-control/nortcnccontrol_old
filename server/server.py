@@ -7,6 +7,7 @@ import common.config
 import sender
 import sender.emulatorsender
 import sender.serialsender
+import sender.rdpossender
 import sender.spindelemulator
 import sender.n700e
 
@@ -219,7 +220,8 @@ for o, a in opts:
 if emulate_t:
     table_sender = sender.emulatorsender.EmulatorSender()
 else:
-    table_sender = sender.serialsender.SerialSender(port, brate)
+    table_sender = sender.rdpossender.RDPoSSender(port, brate)
+#    table_sender = sender.serialsender.SerialSender(port, brate)
 
 if emulate_s:
     spindel_sender = sender.spindelemulator.Spindel_EMU()

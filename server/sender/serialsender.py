@@ -6,6 +6,7 @@ import serial
 from common import event
 import threading
 import re
+from sender import answer
 
 class SerialSender(object):
 
@@ -18,13 +19,7 @@ class SerialSender(object):
             threading.Thread.__init__(self)
             self.ser = ser
             self.finish_event = finish_event
-            self.re_completed = re.compile(r"completed N:([0-9]+) Q:([0-9]+).*")
-            self.re_started = re.compile(r"started N:([0-9]+) Q:([0-9]+).*")
-            self.re_queued = re.compile(r"queued N:([0-9]+) Q:([0-9]+).*")
-            self.re_dropped = re.compile(r"dropped N:([0-9]+) Q:([0-9]+).*")
-            self.re_error = re.compile(r"error.*")
-            self.redebug = re.compile(r"debug.*")
-            
+
             self.ev_completed = ev_completed
             self.ev_started = ev_started
             self.ev_slots = ev_slots
@@ -51,57 +46,27 @@ class SerialSender(object):
                     self.ev_protocolerror(False, resp)
                     continue
 
-                ans = str(ans).lstrip(chr(0)).strip()
+                ans = str(ans).strip()
                 print("Received answer: [%s], len = %i" % (ans, len(ans)))
-                if ans == "Hello":
-                    self.ev_mcu_reseted()
-                    continue
-
-                match = self.re_started.match(ans)
-                if match != None:
-                    print("Start received")
-                    Nid = match.group(1)
-                    self.ev_started(Nid)
-                    Q = int(match.group(2))
-                    self.ev_slots(Nid, Q)
-                    continue
-
-                match = self.re_completed.match(ans)
-                if match != None:
-                    print("Completed received")
-                    Nid = match.group(1)
-                    self.ev_completed(Nid)
-                    Q = int(match.group(2))
-                    self.ev_slots(Nid, Q)
-                    continue
-
-                match = self.re_queued.match(ans)
-                if match != None:
-                    Nid = match.group(1)
-                    Q = int(match.group(2))
-                    self.ev_queued(Nid)
-                    self.ev_slots(Nid, Q)
-                    continue
-
-                match = self.re_dropped.match(ans)
-                if match != None:
-                    Q = int(match.group(2))
-                    Nid = match.group(1)
-                    self.ev_dropped(Nid)
-                    self.ev_slots(Nid, Q)
-                    continue
-
-                match = self.re_error.match(ans)
-                if match != None:
-                    self.ev_error(ans)
-                    continue
-
-                match = self.redebug.match(ans)
-                if match != None:
-                    continue
-
-                print("Unknown answer from MCU: %s" % ans)
-                self.ev_protocolerror(False, ans)
+                
+                evt = answer.parse_answer(msg)
+                if evt["result"] == "ok":
+                    if evt["event"] == "queue":
+                        self.ev_slots(evt["slots"])
+                        self.queued(evt["action"])
+                    elif evt["event"] == "drop":
+                        self.ev_slots(evt["slots"])
+                        self.ev_dropped(evt["action"])
+                    elif evt["event"] == "start":
+                        self.ev_slots(evt["slots"])
+                        self.ev_started(evt["action"])
+                    elif evt["event"] == "complete":
+                        self.ev_slots(evt["slots"])
+                        self.ev_completed(evt["action"])
+                    elif evt["event"] == "init":
+                        self.ev_mcu_reseted()
+                    elif evt["event"] == "error":
+                        self.ev_error(evt["msg"])
 
     indexed = event.EventEmitter()
     queued = event.EventEmitter()
