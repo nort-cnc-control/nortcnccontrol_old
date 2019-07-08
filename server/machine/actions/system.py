@@ -6,7 +6,7 @@ class TableReset(action.Action):
         self.is_pause = True
     
     def act(self):
-        self.sender.send_command("M999")
+        self.sender.send_command("M999", wait=False)
         return False
 
 class TableUnlock(action.MCUAction):
