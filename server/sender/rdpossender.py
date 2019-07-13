@@ -77,12 +77,15 @@ class RDPoSSender(object):
         self.rthr.start()
         self.has_slots.set()
 
-    def send_command(self, command):
+    def send_command(self, command, wait=True):
         self.__id += 1
         self.indexed(self.__id)
         cmd = "N%i %s" % (self.__id, command)
         print("Sending command %s" % cmd)
-        self.__conn.send(bytes(cmd, "ascii"))
+        if wait:
+            self.__conn.send(bytes(cmd, "ascii"))
+        else:
+            self.__conn.send_nowait(bytes(cmd, "ascii"))
         return  self.__id
 
     def close(self):

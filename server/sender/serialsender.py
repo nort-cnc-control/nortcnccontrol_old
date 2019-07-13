@@ -114,7 +114,7 @@ class SerialSender(object):
         if Nid != self.__id:
             return
 
-    def send_command(self, command):
+    def send_command(self, command, wait=True):
         self.__id += 1
         self.__reseted = False
         self.indexed(self.__id)
