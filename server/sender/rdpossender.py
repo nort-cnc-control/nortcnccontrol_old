@@ -93,4 +93,5 @@ class RDPoSSender(object):
         self.__ser.close()
 
     def reset(self):
-        pass
+        self.__conn.reset()
+        self.__conn.connect(1,1)
