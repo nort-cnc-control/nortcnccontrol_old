@@ -41,7 +41,6 @@ class RDPoSSender(object):
                 msg = self.conn.read()
                 if msg is None:
                     break
-
                 evt = answer.parse_answer(msg)
                 if evt["result"] == "ok":
                     if evt["event"] == "queue":
@@ -92,6 +91,12 @@ class RDPoSSender(object):
         self.__conn.close()
         self.__ser.close()
 
+    def clean(self):
+        pass
+
     def reset(self):
+        print("Reseting connection")
         self.__conn.reset()
         self.__conn.connect(1,1)
+        print("Connected")
+

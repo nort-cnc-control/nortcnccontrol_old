@@ -220,7 +220,7 @@ for o, a in opts:
 if emulate_t:
     table_sender = sender.emulatorsender.EmulatorSender()
 else:
-    table_sender = sender.rdpossender.RDPoSSender(port, brate)
+    table_sender = sender.rdpossender.RDPoSSender(port, brate, debug=False)
 #    table_sender = sender.serialsender.SerialSender(port, brate)
 
 if emulate_s:

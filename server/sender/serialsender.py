@@ -133,6 +133,10 @@ class SerialSender(object):
         self.__finish_event.set()
         self.__ser.close()
 
-    def reset(self):
+    def clean(self):
         self.__reseted = True
         self.__qans.set()
+
+    def reset(self):
+        pass
+

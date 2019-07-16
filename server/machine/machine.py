@@ -224,7 +224,7 @@ class Machine(object):
         if self.current_wait is not None:
             self.current_wait.set()
 
-        self.table_sender.reset()
+        self.table_sender.clean()
         self.__abort_actions()
         self.spindle_sender.stop()
         self.__table_reseted_ev.set()
