@@ -7,6 +7,7 @@ import common.config
 import sender
 import sender.emulatorsender
 import sender.serialsender
+import sender.ethernetsender
 import sender.spindelemulator
 import sender.n700e
 
@@ -187,7 +188,7 @@ class Controller(object):
                         pass
 
 port = common.config.TABLE_PORT
-brate = common.config.BAUDRATE
+brate = common.config.TABLE_BAUDRATE
 port_485 = common.config.RS485_PORT
 n700e_id = common.config.N700E_ID
 
@@ -219,7 +220,8 @@ for o, a in opts:
 if emulate_t:
     table_sender = sender.emulatorsender.EmulatorSender()
 else:
-    table_sender = sender.serialsender.SerialSender(port, brate)
+    table_sender = sender.ethernetsender.EthernetSender(port, debug=True)
+#    table_sender = sender.serialsender.SerialSender(port, brate)
 
 if emulate_s:
     spindel_sender = sender.spindelemulator.Spindel_EMU()

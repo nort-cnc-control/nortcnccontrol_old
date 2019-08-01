@@ -28,8 +28,10 @@ PRECISE_FEED = 50.0
 DEFAULT_FEED = 20.0
 
 # communication settings
-BAUDRATE = 9600
-TABLE_PORT = "/dev/ttyUSB0"
+TABLE_BAUDRATE = 115200
+TABLE_PORT = "eth0"
+
+RS485_BAUDRATE = 9600
 RS485_PORT = "/dev/ttyUSB1"
 
 # spindel options

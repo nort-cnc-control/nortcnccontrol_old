@@ -18,12 +18,7 @@ def build_answer(cmd, Nid, Q):
     }
 
 def parse_answer(data):
-    try:
-        ans = data.decode("ascii")
-    except Exception as e:
-        return {"result" : "error", "error" : str(e)}
-
-    ans = str(ans).strip()
+    ans = str(data).strip()
     print("Received answer: [%s], len = %i" % (ans, len(ans)))
     if ans == "Hello":
         print("Hello received")

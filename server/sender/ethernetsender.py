@@ -2,22 +2,25 @@
 
 import time
 import sys
-import serial
+import socket
 from common import event
 import threading
 import re
 from sender import answer
+import fcntl
+import struct
 
-class SerialSender(object):
+class EthernetSender(object):
 
-    class SerialReceiver(threading.Thread):
+    class EthernetReceiver(threading.Thread):
 
-        def __init__(self, ser, finish_event,
+        def __init__(self, sock, remote, finish_event,
                     ev_completed, ev_started,
                     ev_slots, ev_dropped, ev_queued,
                     ev_protocolerror, ev_mcu_reseted, ev_error):
             threading.Thread.__init__(self)
-            self.ser = ser
+            self.sock = sock
+            self.remote = remote
             self.finish_event = finish_event
 
             self.ev_completed = ev_completed
@@ -33,20 +36,26 @@ class SerialSender(object):
             while not self.finish_event.is_set():
                 resp = None
                 try:
-                    resp = self.ser.readline()
+                    resp = self.sock.recv(1500)
                 except Exception as e:
-                    print("Serial port read error", e)
-                    self.ev_protocolerror(True, "Serial port read error")
+                    print("Ethernet read error", e)
+                    self.ev_protocolerror(True, "Ethernet read error")
                     break
-
+                #dst = resp[0:6]
+                src = resp[6:12]
+                ethtype = resp[12]*256 +resp[13] 
+                #length = resp[14]*256 + resp[15]
+                msg = resp[16:]
+                if ethtype != 0xFEFE:
+                    continue
+                self.remote["mac"] = src
                 try:
-                    ans = resp.decode("ascii")
+                    ans = msg.decode("ascii").replace("\x00", "")
                 except:
                     print("Can not decode answer: ", e)
                     self.ev_protocolerror(False, resp)
                     continue
 
-                ans = str(ans).strip()
                 print("Received answer: [%s], len = %i" % (ans, len(ans)))
                 
                 evt = answer.parse_answer(ans)
@@ -67,6 +76,8 @@ class SerialSender(object):
                         self.ev_mcu_reseted()
                     elif evt["event"] == "error":
                         self.ev_error(evt["msg"])
+                else:
+                    print("problem", evt)
 
     indexed = event.EventEmitter()
     queued = event.EventEmitter()
@@ -80,24 +91,33 @@ class SerialSender(object):
     __reseted_ev = event.EventEmitter()
     has_slots = threading.Event()
     
-    def __init__(self, port, bdrate, timeout):
+    @staticmethod
+    def __getHwAddr(ifname):
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        info = fcntl.ioctl(s.fileno(), 0x8927,  struct.pack('256s', bytes(ifname, 'utf-8')[:15]))
+        return info[18:24]
+
+    def __init__(self, ethname, timeout=0, debug=False):
         self.__id = 0
+        self.__ethertype = bytes([0xFE, 0xFE])
+        self.__remote = {
+            "inited" : False,
+            "mac" : bytes([255,255,255,255,255,255])
+        }
+        self.__localmac = self.__getHwAddr(ethname)
         self.__qans = threading.Event()
         self.__reseted = False
         self.__slots = event.EventEmitter()
         self.__finish_event = threading.Event()
 
-        self.port = port
-        self.baudrate = bdrate
+        self.__sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW)
+        self.__sock.bind((ethname, socket.htons(0xFEFE)))
         self.timeout = timeout
-        self.__ser = serial.Serial(self.port, self.baudrate,
-                                   bytesize=8, parity='N', stopbits=1,
-                                   rtscts=False, dsrdtr=False)
-        
-        self.__listener = self.SerialReceiver(self.__ser, self.__finish_event,
-                                              self.completed, self.started, self.__slots,
-                                              self.dropped, self.queued,
-                                              self.protocol_error, self.__reseted_ev, self.error)
+
+        self.__listener = self.EthernetReceiver(self.__sock, self.__remote, self.__finish_event,
+                                                self.completed, self.started, self.__slots,
+                                                self.dropped, self.queued,
+                                                self.protocol_error, self.__reseted_ev, self.error)
         self.__reseted_ev += self.__on_reset
         self.__slots += self.__on_slots
         self.__listener.start()
@@ -125,20 +145,22 @@ class SerialSender(object):
         s = sum(encoded)
         crc = bytes("*%X" % s, "ascii")
         msg = encoded + crc + b'\n'
+        msglen = len(msg)
+        lenb = bytes([int(msglen / 256), int(msglen % 256)])
         print("Sending command %s" % msg)
-        self.__ser.write(msg)
-        self.__ser.flush()
+        frame = self.__remote["mac"] + self.__localmac + self.__ethertype + lenb + msg
+        self.__sock.send(frame)
         oid = self.__id
         return oid
 
     def close(self):
         self.__finish_event.set()
-        self.__ser.close()
+        self.__sock.close()
 
     def clean(self):
         self.__reseted = True
         self.__qans.set()
 
     def reset(self):
-        pass
+        self.__remote["mac"] = bytes([255,255,255,255,255,255])
 
