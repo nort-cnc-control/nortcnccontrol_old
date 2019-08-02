@@ -33,6 +33,7 @@ class EthernetSender(object):
             self.ev_error = ev_error
 
         def run(self):
+            print("START RECEIVER")
             while not self.finish_event.is_set():
                 resp = None
                 try:

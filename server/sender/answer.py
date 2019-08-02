@@ -19,37 +19,36 @@ def build_answer(cmd, Nid, Q):
 
 def parse_answer(data):
     ans = str(data).strip()
-    print("Received answer: [%s], len = %i" % (ans, len(ans)))
     if ans == "Hello":
-        print("Hello received")
+        #print("Hello received")
         return {"result" : "ok", "event" : "init"}
 
     match = re_started.match(ans)
     if match != None:
         Nid = int(match.group(1))
         Q = int(match.group(2))
-        print("Action %i started" % Nid)
+        #print("Action %i started" % Nid)
         return build_answer("start", Nid, Q)
 
     match = re_completed.match(ans)
     if match != None:
         Nid = int(match.group(1))
         Q = int(match.group(2))
-        print("Action %i completed" % Nid)
+        #print("Action %i completed" % Nid)
         return build_answer("complete", Nid, Q)
 
     match = re_queued.match(ans)
     if match != None:
         Nid = int(match.group(1))
         Q = int(match.group(2))
-        print("Action %i queued" % Nid)
+        #print("Action %i queued" % Nid)
         return build_answer("queue", Nid, Q)
 
     match = re_dropped.match(ans)
     if match != None:
         Nid = int(match.group(1))
         Q = int(match.group(2))
-        print("Action %i dropped" % Nid)
+        #print("Action %i dropped" % Nid)
         return build_answer("drop", Nid, Q)
 
     match = re_error.match(ans)
