@@ -6,7 +6,7 @@ import serial
 from common import event
 import threading
 import re
-from sender import answer
+from . import answer
 
 class SerialSender(object):
 
@@ -62,7 +62,7 @@ class SerialSender(object):
                         self.ev_started(evt["action"])
                     elif evt["event"] == "complete":
                         self.ev_slots(evt["action"], evt["slots"])
-                        self.ev_completed(evt["action"])
+                        self.ev_completed(evt["action"], evt["response"])
                     elif evt["event"] == "init":
                         self.ev_mcu_reseted()
                     elif evt["event"] == "error":

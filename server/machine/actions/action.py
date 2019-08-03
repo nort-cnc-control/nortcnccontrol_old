@@ -91,6 +91,10 @@ class MCUAction(Action):
     def command(self):
         return ""
 
+    @abc.abstractmethod
+    def on_completed(self, response):
+        pass
+
     def dispose(self):
         Action.dispose(self)
         self.table_sender.dropped -= self.__received_dropped
@@ -126,12 +130,13 @@ class MCUAction(Action):
             self.crc_error = True
         self.error = True
 
-    def __received_completed(self, nid):
+    def __received_completed(self, nid, response):
         nid = int(nid)
         if nid == self.Nid:
             print("Action %i completed" % nid)
             self.completed.set()
             self.finished.set()
+            self.on_completed(response)
             self.action_completed(self)
 
     def act(self):

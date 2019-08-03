@@ -1,20 +1,59 @@
 #!/usr/bin/env python3
-import re
 
-re_completed = re.compile(r"completed N:([0-9]+) Q:([0-9]+).*")
-re_started = re.compile(r"started N:([0-9]+) Q:([0-9]+).*")
-re_queued = re.compile(r"queued N:([0-9]+) Q:([0-9]+).*")
-re_dropped = re.compile(r"dropped N:([0-9]+) Q:([0-9]+).*")
-re_error = re.compile(r"error.*")
-redebug = re.compile(r"debug.*")
+def get_number(line):
+    last = len(line) - 1
+    has_dot = False
+    sign = 1
+    if line[0] == "-" or line[0] == "+":
+        if line[0] == "-":
+            sign = -1
+        line = line[1:]
 
+    for i in range(len(line)):
+        if line[i] == ".":
+            if not has_dot:
+                has_dot = True
+            else:
+                break
+        if not line[i].isdecimal():
+            break
+        last = i
+    num = line[:last+1]
+    try:
+        val = int(num) * sign
+    except:
+        val = float(num) * sign
+    return line[last+1:], val
 
-def build_answer(cmd, Nid, Q):
+def get_param(line):
+    line = line.lstrip()
+    if not line[0].isalpha():
+        return line, None, None
+    if line[1] != ":":
+        return line, None, None
+    tail = line[2:]
+    param = line[0]
+    tail, value = get_number(tail)
+    if value is not None:
+        return tail, param, value
+    return line, None, None
+
+def get_params(line):
+    params = {}
+    while len(line) > 0:
+        line, param, value = get_param(line)
+        if param is None:
+            break
+        params[param] = value
+    return line, params
+
+def build_answer(cmd, Nid, Q, params):
     return {
         "result" : "ok",
         "event" : cmd,
         "action" : Nid,
         "slots" : Q,
+        "response" : params
     }
 
 def parse_answer(data):
@@ -23,40 +62,42 @@ def parse_answer(data):
         #print("Hello received")
         return {"result" : "ok", "event" : "init"}
 
-    match = re_started.match(ans)
-    if match != None:
-        Nid = int(match.group(1))
-        Q = int(match.group(2))
+    if ans.startswith("started"):
+        _, params = get_params(ans[7:])
+        Nid = params["N"]
+        Q = params["Q"]
         #print("Action %i started" % Nid)
-        return build_answer("start", Nid, Q)
+        return build_answer("start", Nid, Q, params)
 
-    match = re_completed.match(ans)
-    if match != None:
-        Nid = int(match.group(1))
-        Q = int(match.group(2))
-        #print("Action %i completed" % Nid)
-        return build_answer("complete", Nid, Q)
+    if ans.startswith("completed"):
+        _, params = get_params(ans[9:])
+        Nid = params["N"]
+        Q = params["Q"]
+        #print("Action %i started" % Nid)
+        return build_answer("complete", Nid, Q, params)
 
-    match = re_queued.match(ans)
-    if match != None:
-        Nid = int(match.group(1))
-        Q = int(match.group(2))
-        #print("Action %i queued" % Nid)
-        return build_answer("queue", Nid, Q)
+    if ans.startswith("queued"):
+        _, params = get_params(ans[6:])
+        Nid = params["N"]
+        Q = params["Q"]
+        #print("Action %i started" % Nid)
+        return build_answer("queue", Nid, Q, params)
 
-    match = re_dropped.match(ans)
-    if match != None:
-        Nid = int(match.group(1))
-        Q = int(match.group(2))
-        #print("Action %i dropped" % Nid)
-        return build_answer("drop", Nid, Q)
+    if ans.startswith("dropped"):
+        _, params = get_params(ans[7:])
+        Nid = params["N"]
+        Q = params["Q"]
+        #print("Action %i started" % Nid)
+        return build_answer("drop", Nid, Q, params)
 
-    match = re_error.match(ans)
-    if match != None:
-        return {"result" : "ok", "event" : "error", "msg" : ans}
-            
-    match = redebug.match(ans)
-    if match != None:
-        return {"result" : "ok", "event" : "debug", "msg" : ans}
-            
+    if ans.startswith("error"):
+        return {"result" : "ok", "event" : "error", "msg" : ans[5:]}
+
+    if ans.startswith("debug"):
+        return {"result" : "ok", "event" : "debug", "msg" : ans[5:]}
+
     return {"result" : "error", "error" : "unknown answer", "value" : ans}
+
+if __name__ == "__main__":
+    resp = "completed N:8 Q:8"
+    print(parse_answer(resp))

@@ -26,7 +26,7 @@ class EmulatorSender(object):
         self.queued(self.id)
         oid = self.id
         self.started(self.id)
-        self.completed(self.id)
+        self.completed(self.id, {})
         return oid
 
     def reset(self):
