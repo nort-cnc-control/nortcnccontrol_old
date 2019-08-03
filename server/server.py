@@ -33,13 +33,11 @@ class Controller(object):
         except Exception as e:
             print(e)
 
-    def __init__(self, table_sender, spindel_sender, path):
-        self.path = path
-        if os.path.exists(path):
-            os.remove(path)
+    def __init__(self, table_sender, spindel_sender, listen):
+        self.listen = listen
         self.state = "init"
-        self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.socket.bind(path)
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.bind(listen)
         self.socket.listen(1)
 
         self.msg_sender = None
@@ -228,6 +226,5 @@ if emulate_s:
 else:
     spindel_sender = sender.n700e.Spindel_N700E(port_485, n700e_id)
 
-controller = Controller(table_sender, spindel_sender, "/tmp/cnccontrol")
+controller = Controller(table_sender, spindel_sender, common.config.LISTEN)
 controller.run()
-

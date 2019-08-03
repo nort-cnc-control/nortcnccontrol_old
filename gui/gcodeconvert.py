@@ -24,10 +24,8 @@ def usage():
 
 class Controller(object):
 
-    sockpath = "/tmp/cnccontrol"
-
-    def __init__(self):
-
+    def __init__(self, sock):
+        self.sock = sock
         self.control = gui.Interface()
         self.control.load_file += self.__load_file
         self.control.reset_clicked += self.__reset
@@ -37,7 +35,6 @@ class Controller(object):
         self.control.home_clicked += self.__home
         self.control.probe_clicked += self.__probe
         self.control.command_entered += self.__command
-        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.sock.settimeout(0)
         self.control.switch_to_initial_mode()
 
@@ -135,8 +132,6 @@ class Controller(object):
         return True
 
     def run(self):
-        self.sock.connect(self.sockpath)
-
         self.msg_receiver = common.jsonwait.JsonReceiver(self.sock)
         self.msg_sender = common.jsonwait.JsonSender(self.sock)
 
@@ -154,13 +149,20 @@ if __name__ == "__main__":
         print(err)
         sys.exit(1)
     
+    remote = ("127.0.0.1", 10000)
+
     for o, a in optlist:
         if o == "-i":
             infile = a
         elif o == "-h":
             usage()
             sys.exit(0)
+        elif o == "-r":
+            remote = (a, 10000)
 
-    ctl = Controller()
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect(remote)
+
+    ctl = Controller(sock)
     ctl.run()
     sys.exit(0)
