@@ -15,7 +15,7 @@ def get_number(line):
                 has_dot = True
             else:
                 break
-        if not line[i].isdecimal():
+        elif not line[i].isdecimal():
             break
         last = i
     num = line[:last+1]
@@ -99,5 +99,5 @@ def parse_answer(data):
     return {"result" : "error", "error" : "unknown answer", "value" : ans}
 
 if __name__ == "__main__":
-    resp = "completed N:8 Q:8"
-    print(parse_answer(resp))
+    resp = "N:8 Q:8 X:0.00 Y:0.00 Z:0.00"
+    print(get_params(resp))

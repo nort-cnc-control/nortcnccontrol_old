@@ -96,6 +96,12 @@ class Controller(object):
         elif type == "line":
             line = msg["line"]
             self.control.select_line(line)
+        elif type == "coordinates":
+            hw = msg["hardware"]
+            glob = msg["global"]
+            loc = msg["local"]
+            cs = msg["cs"]
+            self.control.set_coordinates(hw, glob, loc, cs)
         elif type == "state":
             state = msg["state"]
             message = msg["message"]

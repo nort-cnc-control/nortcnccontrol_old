@@ -123,13 +123,28 @@ class ProgramBuilder(object):
                     self.table_state.pos.x = 0
                     self.table_state.pos.y = 0
                     self.table_state.pos.z = 0
+                    self.program.insert_reset_coordinates(x=self.table_state.pos.x,
+                                                          y=self.table_state.pos.y,
+                                                          z=self.table_state.pos.z)
                 elif cmd.value == 30:
                     self.program.insert_z_probe()
                     self.table_state.pos.z = 0
+                    self.program.insert_reset_coordinates(z=self.table_state.pos.z)
                 elif cmd.value == 92:
                     # set offset registers
                     self.__set_coordinates(x=pos.X, y=pos.Y, z=pos.Z)
+                    cs = self.table_state.coord_system
+                    csstr = str(cs)
+                    offset = self.table_state.offsets[cs]
+                    offset = euclid3.Vector3(offset.x, offset.y, offset.z)
+                    self.program.insert_coordinate_system_change(csstr, offset)
                     no_motion = True
+                elif cmd.value >= 53 and cmd.value <= 59:
+                    cs = self.table_state.coord_system
+                    csstr = str(cs)
+                    offset = self.table_state.offsets[cs]
+                    offset = euclid3.Vector3(offset.x, offset.y, offset.z)
+                    self.program.insert_coordinate_system_change(csstr, offset)
             elif cmd.type == "M":
                 if cmd.value == 6 and tool.tool != None:
                     self.program.insert_select_tool(tool.tool, self.tool_select_cb)

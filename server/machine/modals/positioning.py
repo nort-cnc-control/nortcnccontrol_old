@@ -65,13 +65,29 @@ class PositioningState(object):
         retract_r = 99
 
     class CoordinateSystemGroup(Enum):
-            no_offset = 53
-            offset_1 = 54
-            offset_2 = 55
-            offset_3 = 56
-            offset_4 = 57
-            offset_5 = 58
-            offset_6 = 59
+        no_offset = 53
+        offset_1 = 54
+        offset_2 = 55
+        offset_3 = 56
+        offset_4 = 57
+        offset_5 = 58
+        offset_6 = 59
+
+        def __str__(self):
+            if self == self.no_offset:
+                return "G53"
+            elif self == self.offset_1:
+                return "G54"
+            elif self == self.offset_2:
+                return "G55"
+            elif self == self.offset_3:
+                return "G56"
+            elif self == self.offset_4:
+                return "G57"
+            elif self == self.offset_5:
+                return "G58"
+            elif self == self.offset_6:
+                return "G59"
 
     def __init__(self):
         self.feed = common.config.DEFAULT_FEED

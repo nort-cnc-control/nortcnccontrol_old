@@ -12,6 +12,7 @@ from . import actions
 from . import parser
 from . import modals
 from . import program as pr
+from . import runtimestate
 
 from .actions import linear
 from .actions import helix
@@ -21,6 +22,7 @@ from .actions import tools
 from .actions import spindle
 from .actions import program
 from .actions import system
+from .actions import state
 
 import common
 from common import event
@@ -64,6 +66,8 @@ class Machine(object):
         self.error          = event.EventEmitter()
         self.line_selected  = event.EventEmitter()
         self.tool_selected  = event.EventEmitter()
+        self.on_coordinates = event.EventEmitter()
+
         self.reset = False
         self.action_rdy = threading.Event()
         self.__table_reseted_ev = threading.Event()
@@ -84,11 +88,19 @@ class Machine(object):
         self.previous_state = None
         self.work_init(self.empty_program)
         self.table_sender.mcu_reseted += self.__table_reseted
+        # current states
+        self.runtime_state = runtimestate.RuntimeState({"x":0, "y":0, "z":0}, euclid3.Vector3())
         print("done")
 
     def work_init(self, program):
         print("INIT")
+        if self.program != None:
+            self.program.dispose()
+
         self.program = program
+        self.program.reset_coordinates_ev += self.__update_global_coordinate_system
+        self.program.update_current_cs_ev += self.__update_current_coordinate_system
+
         self.is_running = False
         self.iter = 0
         self.reset = False
@@ -189,6 +201,42 @@ class Machine(object):
         self.iter += 1
         return action
 
+    # find machine coordinates from hw_coordinates
+    @staticmethod
+    def __vec3dict(vec):
+        return {"x" : vec.x, "y" : vec.y, "z" : vec.z}
+
+    def __coordinates_cb(self, crds):
+        self.crd_act.dispose()
+        self.runtime_state.update_coordinates(crds)
+        self.on_coordinates(self.__vec3dict(self.runtime_state.hw_crds),
+                            self.__vec3dict(self.runtime_state.global_crds),
+                            self.__vec3dict(self.runtime_state.current_crds),
+                            self.runtime_state.coordinate_system)
+
+    def __update_global_coordinate_system(self, hw, x, y, z):
+        if x != None:
+            self.runtime_state.update_global_coordinates_x(hw["x"], x)
+        if y != None:
+            self.runtime_state.update_global_coordinates_y(hw["y"], y)
+        if z != None:
+            self.runtime_state.update_global_coordinates_z(hw["z"], z)
+
+    def __update_current_coordinate_system(self, cs, offset):
+        self.runtime_state.update_current_coordinate_system(cs, offset)
+
+    def __endstops_cb(self, estp):
+        self.es_act.dispose()
+        self.endstops = dict(estp)
+
+    def RequestCoordinates(self):
+        self.crd_act = state.TableCoordinates(self.table_sender, self.__coordinates_cb)
+        self.crd_act.run()
+
+    def RequestEndstops(self):
+        self.es_act = state.TableEndstops(self.table_sender, self.__endstops_cb)
+        self.es_act.run()
+
     def WorkReset(self):
         print("RESET")
         act = system.TableReset(sender=self.table_sender)
@@ -202,6 +250,7 @@ class Machine(object):
         if self.program is not self.user_program and self.program is not self.empty_program:
             self.program.dispose()
             self.program = self.empty_program
+        self.hw_coordinates = euclid3.Vector3(0,0,0)
     
     def __abort_actions(self):
         for action in self.c_actions:

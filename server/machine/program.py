@@ -6,10 +6,12 @@ from .actions import pause
 from .actions import tools
 from .actions import spindle
 from .actions import program
+from .actions import state
 
 from .modals import positioning
 
 from .common import config
+from .common import event
 
 import euclid3
 
@@ -21,12 +23,26 @@ class Program(object):
         self.line = 0
         self.table_sender = table_sender
         self.spindle_sender = spindle_sender
+        self.reset_coordinates_ev = event.EventEmitter()
+        self.update_current_cs_ev = event.EventEmitter()
 
     def __add_action(self, action, extra=None):
         self.actions.append((self.index, action, self.line, extra))
 
     def inc_index(self):
         self.index += 1
+
+    def insert_reset_coordinates(self, x=None, y=None, z=None):
+        def crdcb(hw):
+            self.reset_coordinates_ev(hw, x, y, z)
+
+        self.__add_action(state.TableCoordinates(sender=self.table_sender, coordinates_cb=crdcb))
+
+    def insert_coordinate_system_change(self, cs, offset):
+        def csupdcb(cs, offset):
+            self.update_current_cs_ev(cs, offset)
+
+        self.__add_action(state.CurrentCoordinateSystem(csupdcb, cs, offset))
 
     def insert_unlock(self):
         self.__add_action(action.MCUCmd("M800", sender=self.table_sender))
@@ -323,6 +339,9 @@ class Program(object):
     #endregion control
 
     def dispose(self):
-        for act in self.actions:
-            act[1].dispose()
+        if self.actions != None:
+            for act in self.actions:
+                act[1].dispose()
         self.actions = None
+        self.reset_coordinates_ev.dispose()
+        self.update_current_cs_ev.dispose()

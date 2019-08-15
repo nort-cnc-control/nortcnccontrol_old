@@ -17,3 +17,6 @@ class EventEmitter(object):
         if handler in self.handlers:
             self.handlers.remove(handler)
         return self
+
+    def dispose(self):
+        self.handlers = []

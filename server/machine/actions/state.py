@@ -1,13 +1,15 @@
+import euclid3
+
 from . import action
 
 from common import event
 
 class TableCoordinates(action.MCUAction):
 
-    def __init__(self, coordinates, *args, **kwargs):
-        action.MCUAction.__init__(self, *args, **kwargs)
+    def __init__(self, sender, coordinates_cb, *args, **kwargs):
+        action.MCUAction.__init__(self, sender, *args, **kwargs)
         self.caching = False
-        self.coordinates = coordinates
+        self.coordinates = coordinates_cb
 
     def command(self):
         return "M114"
@@ -25,10 +27,10 @@ class TableCoordinates(action.MCUAction):
 
 class TableEndstops(action.MCUAction):
 
-    def __init__(self, coordinates, *args, **kwargs):
-        action.MCUAction.__init__(self, *args, **kwargs)
+    def __init__(self, sender, endstops, *args, **kwargs):
+        action.MCUAction.__init__(self, sender, *args, **kwargs)
         self.caching = False
-        self.coordinates = coordinates
+        self.endstops = endstops
 
     def command(self):
         return "M114"
@@ -38,10 +40,25 @@ class TableEndstops(action.MCUAction):
         y = response["Y"]
         z = response["Z"]
         p = response["P"]
-        position = {
+        endstops = {
             "x" : x != 0,
             "y" : y != 0,
             "z" : z != 0,
             "probe" : p != 0,
         }
-        self.coordinates(position)
+        self.endstops(endstops)
+
+class CurrentCoordinateSystem(action.Action):
+    def __init__(self, csupdate_cb, cs, offset, *args, **kwargs):
+        action.Action.__init__(self, *args, **kwargs)
+        self.offset = offset
+        self.cs = cs
+        self.csupdate_cb = csupdate_cb
+
+    def act(self):
+        print("SET CS = ", self.cs, self.offset)
+        self.csupdate_cb(self.cs, self.offset)
+        self.completed.set()
+        self.finished.set()
+        self.action_completed(self)
+            

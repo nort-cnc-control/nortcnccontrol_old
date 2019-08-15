@@ -22,16 +22,34 @@ import os
 import signal
 import socket
 import json
+import time
 
 import threading
 
 class Controller(object):
+    class RequestThread(threading.Thread):
+        def __init__(self, machine):
+            threading.Thread.__init__(self)
+            self.machine = machine
+        
+        def run(self):
+            while True:
+                time.sleep(0.1)
+                self.machine.RequestCoordinates()
+
     def __emit_message(self, msg):
         try:
             print("Emiting message %s" % str(msg))
-            self.msg_sender.send_message(msg)
+            if self.msg_sender is not None:
+                self.msg_sender.send_message(msg)
+            else:
+                print("sender is None")
+        except OSError:
+            self.msg_sender.sock.close()
+            self.msg_sender = None
+            self.msg_receiver = None
         except Exception as e:
-            print(e)
+            print("Error", type(e), ":", e)
 
     def __init__(self, table_sender, spindel_sender, listen):
         self.listen = listen
@@ -56,8 +74,13 @@ class Controller(object):
         self.machine.finished += self.__done
         self.machine.tool_selected += self.__tool_selected
         self.machine.line_selected += self.__line_selected
+        self.machine.on_coordinates += self.__coordinates
 
+        self.reqthr = self.RequestThread(self.machine)
         self.work_thread = None
+
+    def __coordinates(self, hw, glob, loc, cs):
+        self.__print_coordinates(hw, glob, loc, cs)
 
     def __protocol_error(self, fatal, msg):
         if fatal:
@@ -96,13 +119,23 @@ class Controller(object):
             frames.append(frame)
         self.__emit_message({"type":"loadlines", "lines":lines})
         self.machine.Load(frames)
-        
+
+    def __print_coordinates(self, hw, glob, loc, cs):
+        msg = {
+            "type":"coordinates",
+            "hardware" : [hw["x"], hw["y"], hw["z"]],
+            "global" : [glob["x"], glob["y"], glob["z"]],
+            "local" : [loc["x"], loc["y"], loc["z"]],
+            "cs" : cs,
+        }
+        self.__emit_message(msg)
+
     def __execute_line(self, line):
-        try:
+        #try:
             frame = self.parser.parse(line)
             self.machine.Execute(frame)
-        except Exception as e:
-            self.__done(True, "Process error: " + str(e))
+        #except Exception as e:
+        #    self.__done(True, "Process error: " + str(e))
 
     def __print_state(self, message = ""):
         self.__emit_message({
@@ -127,19 +160,26 @@ class Controller(object):
 
     def run(self):
         self.running = True
+        self.reqthr.start()
         while self.running:
-            self.connection,_ = self.socket.accept()
+            print("WAIT ACCEPT")
+            self.connection, _ = self.socket.accept()
             self.msg_receiver = common.jsonwait.JsonReceiver(self.connection)
             self.msg_sender = common.jsonwait.JsonSender(self.connection)
-            while self.running:
+            print("ACCEPTED")
+            
+            while self.running and self.msg_sender is not None:
                 print("Waiting command")
                 msg, dis = self.msg_receiver.receive_message()
                 if dis:
+                    self.msg_sender = None
+                    self.msg_receiver = None
                     self.connection.close()
                     break
-
+                if msg is None:
+                    continue
                 print("Received: %s" % str(msg))
-                
+
                 if not ("type" in msg):
                     continue
                 if msg["type"] == "getstate":

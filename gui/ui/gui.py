@@ -11,6 +11,7 @@ import OpenGL.GL
 
 import wx
 import wx.stc
+import wx.grid
 
 
 class Interface(object):
@@ -93,6 +94,11 @@ class Interface(object):
 
             code_sizer.Add((-1, 5))
 
+            #region code
+            self.cmdhist = wx.TextCtrl(code_panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.HSCROLL | wx.TE_RICH)
+            code_sizer.Add(self.cmdhist, wx.ID_ANY, flag=wx.EXPAND)
+            #endregion
+
             #region command
             cmdpanel = wx.Panel(code_panel)
             cmdpanel_sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -156,7 +162,6 @@ class Interface(object):
 
             btnsizer.Add((-1, 20))
 
-
             self.home_btn = wx.Button(button_panel, label='Home XYZ')
             btnsizer.Add(self.home_btn)
             self.home_btn.Bind(wx.EVT_BUTTON, self.__home)
@@ -175,9 +180,35 @@ class Interface(object):
             status_sizer = wx.BoxSizer(wx.VERTICAL)
             control_sizer.Add(status_panel)
             status_panel.SetSizer(status_sizer)
+
+            lb = wx.StaticText(status_panel, label="Coordinates")
+            status_sizer.Add(lb)
+            
+            self.crds = wx.grid.Grid(status_panel)
+            status_sizer.Add(self.crds)
+            self.crds.CreateGrid(4, 3)
+            for i in range(3):
+                for j in range(3):
+                    self.crds.SetReadOnly(i, j, True)
+
+            self.crds.SetColLabelValue(0, "HW")
+            self.crds.SetColLabelValue(1, "Global")
+            self.crds.SetColLabelValue(2, "Current")
+            
+            self.crds.SetRowLabelValue(0, "CS")
+            self.crds.SetRowLabelValue(1, "X")
+            self.crds.SetRowLabelValue(2, "Y")
+            self.crds.SetRowLabelValue(3, "Z")
             #endregion
 
             #endregion
+
+        def SetCrds(self, hw, glob, loc, cs):
+            self.crds.SetCellValue(0, 2, str(cs))
+            for i in range(3):
+                self.crds.SetCellValue(i+1, 0, "%0.4f" % hw[i])
+                self.crds.SetCellValue(i+1, 1, "%0.4f" % glob[i])
+                self.crds.SetCellValue(i+1, 2, "%0.4f" % loc[i])
 
         def ClearCode(self):
             self.code.DeleteAllItems()
@@ -195,7 +226,6 @@ class Interface(object):
             self.code.SetItemBackgroundColour(id, wx.LIGHT_GREY)
             self.old_hl = id
 
-
         def OnOpen(self, e):
             with wx.FileDialog(self, "Open G-Code", wildcard="GCODE files (*.gcode)|*.gcode|All files|*", \
                        style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as ofd:
@@ -206,7 +236,9 @@ class Interface(object):
 
         def OnQuit(self, e):
             self.Close()
-
+        
+        def AddHistory(self, cmd):
+            self.cmdhist.AppendText(cmd)
 
     def __init__(self):
         self.app = wx.App()
@@ -225,6 +257,11 @@ class Interface(object):
         self.window.Show(True)
         self.clear_commands()
 
+        self.command_entered += self.__on_command_entered
+
+    def __on_command_entered(self, cmd):
+        self.window.AddHistory(cmd + "\n")
+
     def clear_commands(self):
         self.id = 0
         self.window.ClearCode()
@@ -237,6 +274,9 @@ class Interface(object):
 
     def select_line(self, line):
         self.window.HighLightLine(line)
+
+    def set_coordinates(self, hw, glob, loc, cs):
+        self.window.SetCrds(hw, glob, loc, cs)
 
     def switch_to_initial_mode(self):
         self.window.start_btn.Enable()

@@ -33,8 +33,12 @@ class JsonReceiver(object):
         if msg != None:
             return msg, False
         while True:
-            ser = self.sock.recv(1024)
-            if ser is None or len(ser) == 0:
+            try:
+                ser = self.sock.recv(1024)
+            except BlockingIOError:
+                return None, False
+            except OSError as e:
+                print("OS error", type(e), e)
                 return None, True
             self.buf += ser
             msg = self.__acquire_msg()
