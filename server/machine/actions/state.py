@@ -15,9 +15,12 @@ class TableCoordinates(action.MCUAction):
         return "M114"
 
     def on_completed(self, response):
-        x = response["X"]
-        y = response["Y"]
-        z = response["Z"]
+        try:
+            x = response["X"]
+            y = response["Y"]
+            z = response["Z"]
+        except:
+            return
         position = {
             "x" : x,
             "y" : y,
@@ -36,10 +39,13 @@ class TableEndstops(action.MCUAction):
         return "M114"
 
     def on_completed(self, response):
-        x = response["X"]
-        y = response["Y"]
-        z = response["Z"]
-        p = response["P"]
+        try:
+            x = response["X"]
+            y = response["Y"]
+            z = response["Z"]
+            p = response["P"]
+        except:
+            return
         endstops = {
             "x" : x != 0,
             "y" : y != 0,

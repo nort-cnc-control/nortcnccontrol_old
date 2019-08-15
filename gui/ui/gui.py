@@ -123,10 +123,41 @@ class Interface(object):
 
             hbox.Add(control_panel, flag=wx.LEFT|wx.RIGHT, border=15)
 
+            vcmdpanel = wx.Panel(control_panel)
+            control_sizer.Add(vcmdpanel)
+            vcmdsizer = wx.BoxSizer(wx.HORIZONTAL)
+            vcmdpanel.SetSizer(vcmdsizer)
+
+            #region move control
+
+            movegrid = wx.Panel(vcmdpanel)
+            vcmdsizer.Add(movegrid)
+            
+            movegridsizer = wx.GridBagSizer(vgap=5, hgap=5)
+            movegrid.SetSizer(movegridsizer)
+
+            self.xp = wx.Button(movegrid, label=">")
+            movegridsizer.Add(self.xp, (1, 2))
+            self.xm = wx.Button(movegrid, label="<")
+            movegridsizer.Add(self.xm, (1, 0))
+            self.yp = wx.Button(movegrid, label="^")
+            movegridsizer.Add(self.yp, (0, 1))
+            self.ym = wx.Button(movegrid, label="v")
+            movegridsizer.Add(self.ym, (2, 1))
+            
+            self.zp = wx.Button(movegrid, label="Up")
+            movegridsizer.Add(self.zp, (3, 1))
+            
+            self.zm = wx.Button(movegrid, label="Down")
+            movegridsizer.Add(self.zm, (4, 1))
+            #endregion move control
+
+            vcmdsizer.Add((10, -1))
+
             #region buttons
-            button_panel = wx.Panel(control_panel)
+            button_panel = wx.Panel(vcmdpanel)
             btnsizer = wx.BoxSizer(wx.VERTICAL)
-            control_sizer.Add(button_panel)
+            vcmdsizer.Add(button_panel)
             button_panel.SetSizer(btnsizer)
 
             self.start_btn = wx.Button(button_panel, label='Start')
@@ -199,6 +230,18 @@ class Interface(object):
             self.crds.SetRowLabelValue(1, "X")
             self.crds.SetRowLabelValue(2, "Y")
             self.crds.SetRowLabelValue(3, "Z")
+
+            self.crds.DisableRowResize(0)
+            self.crds.DisableRowResize(1)
+            self.crds.DisableRowResize(2)
+            self.crds.DisableRowResize(3)
+            
+            self.crds.DisableColResize(0)
+            self.crds.DisableColResize(1)
+            self.crds.DisableColResize(2)
+
+            self.crds.SetCellBackgroundColour(0, 0, wx.Colour("lightgrey"))
+            self.crds.SetCellBackgroundColour(0, 1, wx.Colour("lightgrey"))
             #endregion
 
             #endregion
@@ -221,10 +264,14 @@ class Interface(object):
             return id
 
         def HighLightLine(self, id):
-            if self.old_hl != None and self.old_hl < self.code.GetItemCount():
-                self.code.SetItemBackgroundColour(self.old_hl, wx.WHITE)
-            self.code.SetItemBackgroundColour(id, wx.LIGHT_GREY)
-            self.old_hl = id
+            print("select line", id)
+            try:
+                if self.old_hl != None and self.old_hl < self.code.GetItemCount():
+                    self.code.SetItemBackgroundColour(self.old_hl, wx.WHITE)
+                self.code.SetItemBackgroundColour(id, wx.LIGHT_GREY)
+                self.old_hl = id
+            except:
+                pass
 
         def OnOpen(self, e):
             with wx.FileDialog(self, "Open G-Code", wildcard="GCODE files (*.gcode)|*.gcode|All files|*", \
