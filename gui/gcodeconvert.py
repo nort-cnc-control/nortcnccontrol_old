@@ -20,8 +20,6 @@ from ui import gui
 def usage():
     pass
 
-
-
 class Controller(object):
 
     def __init__(self, sock):
@@ -35,6 +33,14 @@ class Controller(object):
         self.control.home_clicked += self.__home
         self.control.probe_clicked += self.__probe
         self.control.command_entered += self.__command
+
+        self.control.xp_clicked += self.__xp
+        self.control.xm_clicked += self.__xm
+        self.control.yp_clicked += self.__yp
+        self.control.ym_clicked += self.__ym
+        self.control.zp_clicked += self.__zp
+        self.control.zm_clicked += self.__zm
+
         self.sock.settimeout(0)
         self.control.switch_to_initial_mode()
 
@@ -47,12 +53,6 @@ class Controller(object):
 
     def __continue(self):
         self.__send_command("continue")
-
-    def __home(self):
-        self.__send_command("home")
-
-    def __probe(self):
-        self.__send_command("probe")
 
     def __start(self):
         self.__send_command("start")
@@ -67,7 +67,71 @@ class Controller(object):
         r = {
             "type" : "command",
             "command" : "execute",
-            "line" : cmd,
+            "lines" : [cmd],
+        }
+        self.msg_sender.send_message(r)
+
+    def __home(self):
+        r = {
+            "type" : "command",
+            "command" : "execute",
+            "lines" : ["G74"],
+        }
+        self.msg_sender.send_message(r)
+
+    def __probe(self):
+        r = {
+            "type" : "command",
+            "command" : "execute",
+            "lines" : ["G30"],
+        }
+        self.msg_sender.send_message(r)
+
+    def __xp(self):
+        r = {
+            "type" : "command",
+            "command" : "execute",
+            "lines" : ["M120", "G91", "G0 X1", "M121"],
+        }
+        self.msg_sender.send_message(r)
+
+    def __xm(self):
+        r = {
+            "type" : "command",
+            "command" : "execute",
+            "lines" : ["M120", "G91", "G0 X-1", "M121"],
+        }
+        self.msg_sender.send_message(r)
+
+    def __yp(self):
+        r = {
+            "type" : "command",
+            "command" : "execute",
+            "lines" : ["M120", "G91", "G0 Y1", "M121"],
+        }
+        self.msg_sender.send_message(r)
+
+    def __ym(self):
+        r = {
+            "type" : "command",
+            "command" : "execute",
+            "lines" : ["M120", "G91", "G0 Y-1", "M121"],
+        }
+        self.msg_sender.send_message(r)
+
+    def __zp(self):
+        r = {
+            "type" : "command",
+            "command" : "execute",
+            "lines" : ["M120", "G91", "G0 Z1", "M121"],
+        }
+        self.msg_sender.send_message(r)
+
+    def __zm(self):
+        r = {
+            "type" : "command",
+            "command" : "execute",
+            "lines" : ["M120", "G91", "G0 Z-1", "M121"],
         }
         self.msg_sender.send_message(r)
 

@@ -166,7 +166,7 @@ class Machine(object):
             self.user_program.dispose()
         self.user_frames = frames
 
-    def Execute(self, frame):
+    def Execute(self, frames):
         if self.is_running:
             raise Exception("Machine should be stopped")
 
@@ -174,8 +174,8 @@ class Machine(object):
         self.builder.finish_cb = self.__finished
         self.builder.pause_cb = self.__paused
         self.builder.tool_select_cb = self.__tool_selected
-        
-        self.work_init(self.builder.build_program([frame]))
+
+        self.work_init(self.builder.build_program(frames))
         self.display_finished = False
         self.WorkContinue()
 

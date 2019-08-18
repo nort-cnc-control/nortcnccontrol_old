@@ -3,7 +3,7 @@ from enum import Enum
 import common
 import copy
 
-class PositioningState(object):
+class Configuration(object):
 
     class CoordinateSystem(object):
 
@@ -94,22 +94,8 @@ class PositioningState(object):
         self.fastfeed = common.config.FASTFEED
         self.acc = common.config.ACCELERATION
         self.jerk = common.config.JERKING
-
-        # global coordinates
-        self.pos = euclid3.Vector3(0, 0, 0)
-
         self.motion = self.MotionGroup.fast_move
         self.plane = self.PlaneGroup.xy
-
-        self.r_offset = self.CutterRadiusCompenstationGroup.no_compensation
-        self.r_offset_axis = euclid3.Vector3(0, 0, 1)
-        self.r_offset_radius = euclid3.Matrix4.new(0,0,0,0,
-                                                   0,0,0,0,
-                                                   0,0,0,0,
-                                                   0,0,0,1)
-
-        self.tool = None
-        self.tool_diameter = {}
 
         self.positioning = self.PositioningGroup.absolute
         self.feed_mode = self.FeedRateGroup.feed
@@ -130,80 +116,84 @@ class PositioningState(object):
                 self.CoordinateSystemGroup.offset_6: self.CoordinateSystem(0, 0, 0),
         }
 
-    def __build_offset_matrix(self, r, sign):
-        if sign == -1:
-            r = -r
-        a1 = self.r_offset_axis[0] * r
-        a2 = self.r_offset_axis[1] * r
-        a3 = self.r_offset_axis[2] * r
-        m = euclid3.Matrix4.new(0, a3, -a2, 0,
-                                -a3, 0, a1, 0,
-                                a2, -a1, 0, 0,
-                                0, 0, 0, 1)
-        return m
+
+class PositioningState(object):
+
+    def __init__(self):
+        # global coordinates
+        self.pos = euclid3.Vector3(0, 0, 0)
+
+        # modals
+        self.modals = Configuration()
+        self.mstack = []
+
+    def __push(self):
+        self.mstack.append(copy.copy(self.modals))
+
+    def __pop(self):
+        if len(self.mstack) == 0:
+            return
+        self.modals = self.mstack[-1]
+        self.mstack = self.mstack[:len(self.mstack)-1]
+
+    def __process_G(self, cmd):
+        if cmd.value == 0:
+            self.modals.motion = Configuration.MotionGroup.fast_move
+        elif cmd.value == 1:
+            self.modals.motion = Configuration.MotionGroup.line
+        elif cmd.value == 2:
+            self.modals.motion = Configuration.MotionGroup.round_cw
+        elif cmd.value == 3:
+            self.modals.motion = Configuration.MotionGroup.round_ccw
+        elif cmd.value == 17:
+            self.modals.plane = Configuration.PlaneGroup.xy
+        elif cmd.value == 18:
+            self.modals.plane = Configuration.PlaneGroup.zx
+        elif cmd.value == 19:
+            self.modals.plane = Configuration.PlaneGroup.yz
+        elif cmd.value == 20:
+            self.modals.units = Configuration.UnitsGroup.inches
+        elif cmd.value == 21:
+            self.modals.units = Configuration.UnitsGroup.mms
+        elif cmd.value == 53:
+            self.modals.coord_system = Configuration.CoordinateSystemGroup.no_offset
+        elif cmd.value == 54:
+            self.modals.coord_system = Configuration.CoordinateSystemGroup.offset_1
+        elif cmd.value == 55:
+            self.modals.coord_system = Configuration.CoordinateSystemGroup.offset_2
+        elif cmd.value == 56:
+            self.modals.coord_system = Configuration.CoordinateSystemGroup.offset_3
+        elif cmd.value == 57:
+            self.modals.coord_system = Configuration.CoordinateSystemGroup.offset_4
+        elif cmd.value == 58:
+            self.modals.coord_system = Configuration.CoordinateSystemGroup.offset_5
+        elif cmd.value == 59:
+            self.modals.coord_system = Configuration.CoordinateSystemGroup.offset_6
+        elif cmd.value == 90:
+            self.modals.positioning = Configuration.PositioningGroup.absolute
+        elif cmd.value == 91:
+            self.modals.positioning = Configuration.PositioningGroup.relative
+        elif cmd.value == 94:
+            self.modals.feed_mode = Configuration.FeedRateGroup.feed
+
+    def __process_M(self, cmd):
+        if cmd.value == 120:
+            self.__push()
+        elif cmd.value == 121:
+            self.__pop()
 
     def process_frame(self, frame):
         for cmd in frame.commands:
-            if cmd.type != "G":
-                continue
-            if cmd.value == 0:
-                self.motion = self.MotionGroup.fast_move
-            elif cmd.value == 1:
-                self.motion = self.MotionGroup.line
-            elif cmd.value == 2:
-                self.motion = self.MotionGroup.round_cw
-            elif cmd.value == 3:
-                self.motion = self.MotionGroup.round_ccw
-            elif cmd.value == 17:
-                self.plane = self.PlaneGroup.xy
-            elif cmd.value == 18:
-                self.plane = self.PlaneGroup.zx
-            elif cmd.value == 19:
-                self.plane = self.PlaneGroup.yz
-            elif cmd.value == 20:
-                self.units = self.UnitsGroup.inches
-            elif cmd.value == 21:
-                self.units = self.UnitsGroup.mms
-            elif cmd.value == 40:
-                self.r_offset = self.CutterRadiusCompenstationGroup.no_compensation
-                self.r_offset_radius = euclid3.Matrix4.new(0,0,0,0,
-                                                           0,0,0,0,
-                                                           0,0,0,0,
-                                                           0,0,0,1)
-            elif cmd.value == 41:
-                self.r_offset = self.CutterRadiusCompenstationGroup.compensate_left
-                if self.tool in self.tool_diameter:
-                    self.r_offset_radius = self.__build_offset_matrix(self.tool_diameter[self.tool]/2, -1)
-            elif cmd.value == 42:
-                self.r_offset = self.CutterRadiusCompenstationGroup.compensate_right
-                if self.tool in self.tool_diameter:
-                    self.r_offset_radius = self.__build_offset_matrix(self.tool_diameter[self.tool]/2, 1)
-            elif cmd.value == 53:
-                self.coord_system = self.CoordinateSystemGroup.no_offset
-            elif cmd.value == 54:
-                self.coord_system = self.CoordinateSystemGroup.offset_1
-            elif cmd.value == 55:
-                self.coord_system = self.CoordinateSystemGroup.offset_2
-            elif cmd.value == 56:
-                self.coord_system = self.CoordinateSystemGroup.offset_3
-            elif cmd.value == 57:
-                self.coord_system = self.CoordinateSystemGroup.offset_4
-            elif cmd.value == 58:
-                self.coord_system = self.CoordinateSystemGroup.offset_5
-            elif cmd.value == 59:
-                self.coord_system = self.CoordinateSystemGroup.offset_6
-            elif cmd.value == 90:
-                self.positioning = self.PositioningGroup.absolute
-            elif cmd.value == 91:
-                self.positioning = self.PositioningGroup.relative
-            elif cmd.value == 94:
-                self.feed_mode = self.FeedRateGroup.feed
+            if cmd.type == "G":
+                self.__process_G(cmd)
+            elif cmd.type == "M":
+                self.__process_M(cmd)
 
     def set_coordinate_system(self, x, y, z):
-        if self.coord_system == self.CoordinateSystemGroup.no_offset:
+        if self.modals.coord_system == Configuration.CoordinateSystemGroup.no_offset:
             raise Exception("Can not set offset for global CS")
 
-        offset = self.offsets[self.coord_system]
+        offset = self.modals.offsets[self.modals.coord_system]
         if x != None:
             x0 = self.pos.x - x
         else:
@@ -219,23 +209,8 @@ class PositioningState(object):
         else:
             z0 = offset.z
 
-        cs = self.CoordinateSystem(x0, y0, z0)
-        self.offsets[self.coord_system] = cs
-
-    def select_tool(self, tool):
-        self.tool = tool
-        if self.tool in self.tool_diameter:
-            if self.r_offset == self.CutterRadiusCompenstationGroup.no_compensation:
-                self.r_offset_radius = euclid3.Matrix4.new(0,0,0,0,
-                                                           0,0,0,0,
-                                                           0,0,0,0,
-                                                           0,0,0,1)
-            elif self.r_offset == self.CutterRadiusCompenstationGroup.compensate_left:
-                self.r_offset_radius = self.__build_offset_matrix(self.tool_diameter[self.tool]/2, -1)
-            elif self.r_offset == self.CutterRadiusCompenstationGroup.compensate_right:
-                self.r_offset_radius = self.__build_offset_matrix(self.tool_diameter[self.tool]/2, 1)
-        else:
-            self.r_offset_radius = 0
+        cs = Configuration.CoordinateSystem(x0, y0, z0)
+        self.modals.offsets[self.modals.coord_system] = cs
 
     def copy(self):
         return copy.copy(self)

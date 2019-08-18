@@ -39,6 +39,21 @@ class Interface(object):
         def __probe(self, arg):
             self.probe_clicked()
 
+        def __xp(self, arg):
+            self.xp_clicked()
+        def __xm(self, arg):
+            self.xm_clicked()
+
+        def __yp(self, arg):
+            self.yp_clicked()
+        def __ym(self, arg):
+            self.ym_clicked()
+
+        def __zp(self, arg):
+            self.zp_clicked()
+        def __zm(self, arg):
+            self.zm_clicked()
+
         def __execute(self, arg):
             cmd = self.command.GetValue()
             self.command_entered(cmd)
@@ -61,6 +76,15 @@ class Interface(object):
             self.home_clicked = event.EventEmitter()
             self.probe_clicked = event.EventEmitter()
             self.command_entered = event.EventEmitter()
+
+            self.xp_clicked = event.EventEmitter()
+            self.xm_clicked = event.EventEmitter()
+
+            self.yp_clicked = event.EventEmitter()
+            self.ym_clicked = event.EventEmitter()
+
+            self.zp_clicked = event.EventEmitter()
+            self.zm_clicked = event.EventEmitter()
 
             wx.Frame.__init__(self, parent, title="CNC Control", size=(800,600))
             menubar = wx.MenuBar()
@@ -138,18 +162,27 @@ class Interface(object):
 
             self.xp = wx.Button(movegrid, label=">")
             movegridsizer.Add(self.xp, (1, 2))
+            self.xp.Bind(wx.EVT_BUTTON, self.__xp)
+            
             self.xm = wx.Button(movegrid, label="<")
             movegridsizer.Add(self.xm, (1, 0))
+            self.xm.Bind(wx.EVT_BUTTON, self.__xm)
+            
             self.yp = wx.Button(movegrid, label="^")
             movegridsizer.Add(self.yp, (0, 1))
+            self.yp.Bind(wx.EVT_BUTTON, self.__yp)
+
             self.ym = wx.Button(movegrid, label="v")
             movegridsizer.Add(self.ym, (2, 1))
-            
+            self.ym.Bind(wx.EVT_BUTTON, self.__ym)
+                        
             self.zp = wx.Button(movegrid, label="Up")
             movegridsizer.Add(self.zp, (3, 1))
-            
+            self.zp.Bind(wx.EVT_BUTTON, self.__zp)
+
             self.zm = wx.Button(movegrid, label="Down")
             movegridsizer.Add(self.zm, (4, 1))
+            self.zm.Bind(wx.EVT_BUTTON, self.__zm)
             #endregion move control
 
             vcmdsizer.Add((10, -1))
@@ -300,6 +333,13 @@ class Interface(object):
         self.home_clicked = self.window.home_clicked
         self.probe_clicked = self.window.probe_clicked
         self.command_entered = self.window.command_entered
+
+        self.xp_clicked = self.window.xp_clicked
+        self.xm_clicked = self.window.xm_clicked
+        self.yp_clicked = self.window.yp_clicked
+        self.ym_clicked = self.window.ym_clicked
+        self.zp_clicked = self.window.zp_clicked
+        self.zm_clicked = self.window.zm_clicked
 
         self.window.Show(True)
         self.clear_commands()

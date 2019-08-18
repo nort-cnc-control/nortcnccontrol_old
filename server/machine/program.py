@@ -154,7 +154,7 @@ class Program(object):
 
         movement = linear.LinearMovement(delta=move_target - move_source,
                                          feed=feed,
-                                         acc=table_state.acc,
+                                         acc=table_state.modals.acc,
                                          sender=self.table_sender)
 
         extra = {
@@ -168,23 +168,23 @@ class Program(object):
         self.__add_action(movement, extra)
 
     def __insert_fast_movement(self, source, target, offset, table_state):
-        self.__insert_linear_movement(source, target, offset, table_state, table_state.fastfeed)
+        self.__insert_linear_movement(source, target, offset, table_state, table_state.modals.fastfeed)
 
     def __insert_payload_movement(self, source, target, offset, table_state):
-        self.__insert_linear_movement(source, target, offset, table_state, table_state.feed)
+        self.__insert_linear_movement(source, target, offset, table_state, table_state.modals.feed)
 
     def __axis_convert(self, axis):
-        if axis == positioning.PositioningState.PlaneGroup.xy:
+        if axis == positioning.Configuration.PlaneGroup.xy:
             axis = helix.HelixMovement.Axis.xy
-        elif axis == positioning.PositioningState.PlaneGroup.yz:
+        elif axis == positioning.Configuration.PlaneGroup.yz:
             axis = helix.HelixMovement.Axis.yz
         else:
             axis = helix.HelixMovement.Axis.zx
         return axis
 
     def __insert_arc_R(self, source, target, offset, R, table_state):
-        ccw = table_state.motion == positioning.PositioningState.MotionGroup.round_ccw
-        axis = self.__axis_convert(table_state.plane)
+        ccw = table_state.modals.motion == positioning.Configuration.MotionGroup.round_ccw
+        axis = self.__axis_convert(table_state.modals.plane)
 
         center, dir0, dir1, arc_angle = helix.HelixMovement.find_geometry(source, target, ccw, axis, r=R)
 
@@ -197,8 +197,8 @@ class Program(object):
                                        axis=axis,
                                        ccw=ccw,
 
-                                       feed=table_state.feed,
-                                       acc=table_state.acc,
+                                       feed=table_state.modals.feed,
+                                       acc=table_state.modals.acc,
                                        sender=self.table_sender)
 
         extra = {
@@ -212,8 +212,8 @@ class Program(object):
         self.__add_action(movement, extra)
 
     def __insert_arc_IJK(self, source, target, offset, I, J, K, table_state):
-        ccw = table_state.motion == positioning.PositioningState.MotionGroup.round_ccw
-        axis = self.__axis_convert(table_state.plane)
+        ccw = table_state.modals.motion == positioning.Configuration.MotionGroup.round_ccw
+        axis = self.__axis_convert(table_state.modals.plane)
 
         center, dir0, dir1, arc_angle = helix.HelixMovement.find_geometry(source, target, ccw, axis, i=I, j=J, k=K)
 
@@ -228,8 +228,8 @@ class Program(object):
                                        axis=axis,
                                        ccw=ccw,
 
-                                       feed=table_state.feed,
-                                       acc=table_state.acc,
+                                       feed=table_state.modals.feed,
+                                       acc=table_state.modals.acc,
                                        sender=self.table_sender)
 
         extra = {
@@ -247,8 +247,8 @@ class Program(object):
         #traceback.print_stack()
         #print(table_state.positioning)
 
-        if table_state.positioning == positioning.PositioningState.PositioningGroup.absolute:
-            cs = table_state.offsets[table_state.coord_system]
+        if table_state.modals.positioning == positioning.Configuration.PositioningGroup.absolute:
+            cs = table_state.modals.offsets[table_state.modals.coord_system]
 
             origpos = table_state.pos
             origpos = cs.global2local(origpos.x, origpos.y, origpos.z)
@@ -273,19 +273,19 @@ class Program(object):
 
         source = table_state.pos
         target = source + delta
-        offset = table_state.r_offset_radius
+        offset = 0
 
         # Normal linear move
-        if table_state.motion == positioning.PositioningState.MotionGroup.line:
+        if table_state.modals.motion == positioning.Configuration.MotionGroup.line:
             self.__insert_payload_movement(source, target, offset, table_state)
 
         # Fast linear move
-        elif table_state.motion == positioning.PositioningState.MotionGroup.fast_move:
+        elif table_state.modals.motion == positioning.Configuration.MotionGroup.fast_move:
             self.__insert_fast_movement(source, target, offset, table_state)
         
         # Arc movement
-        elif table_state.motion == positioning.PositioningState.MotionGroup.round_cw or \
-             table_state.motion == positioning.PositioningState.MotionGroup.round_ccw:
+        elif table_state.modals.motion == positioning.Configuration.MotionGroup.round_cw or \
+             table_state.modals.motion == positioning.Configuration.MotionGroup.round_ccw:
             if pos.R != None:
                 self.__insert_arc_R(source, target, offset, pos.R, table_state)
             else:
@@ -301,7 +301,7 @@ class Program(object):
                 self.__insert_arc_IJK(source, target, offset, ci, cj, ck, table_state)
 
         else:
-            raise Exception("Not implemented %s motion state" % table_state.motion)
+            raise Exception("Not implemented %s motion state" % table_state.modals.motion)
 
         return target
     

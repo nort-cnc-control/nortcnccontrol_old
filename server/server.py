@@ -26,6 +26,8 @@ import time
 
 import threading
 
+crd_timeout = None
+
 class Controller(object):
     class RequestThread(threading.Thread):
         def __init__(self, machine):
@@ -33,6 +35,8 @@ class Controller(object):
             self.machine = machine
         
         def run(self):
+            if crd_timeout is None:
+                return
             while True:
                 time.sleep(0.1)
                 self.machine.RequestCoordinates()
@@ -130,10 +134,13 @@ class Controller(object):
         }
         self.__emit_message(msg)
 
-    def __execute_line(self, line):
+    def __execute_lines(self, lines):
         #try:
-            frame = self.parser.parse(line)
-            self.machine.Execute(frame)
+            frames = []
+            for line in lines:
+                frame = self.parser.parse(line)
+                frames.append(frame)
+            self.machine.Execute(frames)
         #except Exception as e:
         #    self.__done(True, "Process error: " + str(e))
 
@@ -200,7 +207,7 @@ class Controller(object):
                     elif msg["command"] == "execute":
                         self.state = "running"
                         self.__print_state()
-                        self.__run_cmd(self.__execute_line, msg["line"], wait=False)
+                        self.__run_cmd(self.__execute_lines, msg["lines"], wait=False)
                     elif msg["command"] == "exit":
                         self.state = "exit"
                         self.__print_state()
@@ -214,14 +221,6 @@ class Controller(object):
                         self.__run_cmd(self.machine.WorkStop)
                         self.state = "init"
                         self.__print_state()
-                    elif msg["command"] == "home":
-                        self.state = "running"
-                        self.__print_state()
-                        self.__run_cmd(self.__execute_line, "G74", wait=False)
-                    elif msg["command"] == "probe":
-                        self.state = "running"
-                        self.__print_state()
-                        self.__run_cmd(self.__execute_line, "G30", wait=False)
                     else:
                         pass
 
@@ -258,6 +257,7 @@ for o, a in opts:
 if emulate_t:
     table_sender = sender.emulatorsender.EmulatorSender()
 else:
+    crd_timeout = common.config.COORDINATE_REQUEST_TIMEOUT
     table_sender = sender.ethernetsender.EthernetSender(port, debug=True)
 #    table_sender = sender.serialsender.SerialSender(port, brate)
 

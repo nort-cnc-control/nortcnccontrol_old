@@ -43,4 +43,7 @@ SPINDLE_DELAY = 5.0
 EMULATE_TABLE = False
 EMULATE_SPINDEL = False
 
+# timeout of request coordinates
+COORDINATE_REQUEST_TIMEOUT = 0.1
+
 LISTEN=("0.0.0.0", 10000)

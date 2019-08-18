@@ -78,6 +78,8 @@ All sizes should be specified in millimeters (mm).
 - M05 - stop spindel
 - M97 - use subprogram
 - M99 - return from subprogram
+- M120 - push state
+- M121 - pop state
 
 ### Options
 

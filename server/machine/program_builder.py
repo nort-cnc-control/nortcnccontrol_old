@@ -107,7 +107,7 @@ class ProgramBuilder(object):
         self.table_state.process_frame(frame)
         pos = arguments.Positioning(frame)
 
-        if pos is not None and self.table_state.units is self.table_state.UnitsGroup.inches:
+        if pos is not None and self.table_state.modals.units is positioning.Configuration.UnitsGroup.inches:
             pos.as_inches()
 
         feed = arguments.Feed(frame)
@@ -133,16 +133,16 @@ class ProgramBuilder(object):
                 elif cmd.value == 92:
                     # set offset registers
                     self.__set_coordinates(x=pos.X, y=pos.Y, z=pos.Z)
-                    cs = self.table_state.coord_system
+                    cs = self.table_state.modals.coord_system
                     csstr = str(cs)
-                    offset = self.table_state.offsets[cs]
+                    offset = self.table_state.modals.offsets[cs]
                     offset = euclid3.Vector3(offset.x, offset.y, offset.z)
                     self.program.insert_coordinate_system_change(csstr, offset)
                     no_motion = True
                 elif cmd.value >= 53 and cmd.value <= 59:
-                    cs = self.table_state.coord_system
+                    cs = self.table_state.modals.coord_system
                     csstr = str(cs)
-                    offset = self.table_state.offsets[cs]
+                    offset = self.table_state.modals.offsets[cs]
                     offset = euclid3.Vector3(offset.x, offset.y, offset.z)
                     self.program.insert_coordinate_system_change(csstr, offset)
             elif cmd.type == "M":
