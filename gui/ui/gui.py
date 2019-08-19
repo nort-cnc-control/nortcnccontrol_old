@@ -375,6 +375,12 @@ class Interface(object):
         self.window.command.Enable()
         self.window.send_command.Enable()
         self.window.command.SetFocus()
+        self.window.xp.Enable()
+        self.window.xm.Enable()
+        self.window.yp.Enable()
+        self.window.ym.Enable()
+        self.window.zp.Enable()
+        self.window.zm.Enable()
 
     def switch_to_paused_mode(self):
         self.window.start_btn.Disable()
@@ -386,6 +392,12 @@ class Interface(object):
         self.window.command.Disable()
         self.window.send_command.Disable()
         self.window.command.SetFocus()
+        self.window.xp.Enable()
+        self.window.xm.Enable()
+        self.window.yp.Enable()
+        self.window.ym.Enable()
+        self.window.zp.Enable()
+        self.window.zm.Enable()
 
     def switch_to_running_mode(self):
         self.window.start_btn.Disable()
@@ -396,6 +408,13 @@ class Interface(object):
         self.window.probe_btn.Disable()
         self.window.command.Disable()
         self.window.send_command.Disable()
+        self.window.xp.Disable()
+        self.window.xm.Disable()
+        self.window.yp.Disable()
+        self.window.ym.Disable()
+        self.window.zp.Disable()
+        self.window.zm.Disable()
+        
 
     def run(self):
         self.app.MainLoop()
