@@ -121,4 +121,4 @@ python3 and python packages are required:
 
 # License
 
-GNU GPLv3+, full text of GNU GPLv3 see in LICENSE file
+GNU GPLv3, full text of GNU GPLv3 see in LICENSE file
